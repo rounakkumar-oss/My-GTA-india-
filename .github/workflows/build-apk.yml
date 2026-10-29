@@ -2,7 +2,9 @@ name: Build Indian GTA 6 Android APK
 
 on:
   push:
-    branches: [ "main", "master", "**" ]
+    branches: [ "main", "master" ]
+    paths-ignore:
+      - "Indian-GTA-6.apk"
   workflow_dispatch:
 
 permissions:
@@ -19,100 +21,134 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Set up Java 21 (Temurin)
+      - name: Set up Java 17 (Temurin)
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
-          java-version: "21"
+          java-version: "17"
 
-      - name: Configure Pre-Installed Android SDK Licenses
+      - name: Build & Sign Landscape Fullscreen Indian-GTA-6.apk
         run: |
-          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          export ANDROID_SDK_ROOT="$ANDROID_HOME"
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
-          if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          set -e
+          if [ -f "public/apk-base64.txt" ]; then
+            tr -d ' \t\r\n' < public/apk-base64.txt | base64 -d > "$GITHUB_WORKSPACE/Indian-GTA-6.apk"
+            echo "Decoded pre-signed Indian-GTA-6.apk from public/apk-base64.txt"
           fi
 
-      - name: Initialize Capacitor Android Project & Wrap index.html
-        run: |
-          rm -rf /tmp/indian-gta6-apk
-          mkdir -p /tmp/indian-gta6-apk/www
-          cp index.html /tmp/indian-gta6-apk/www/index.html
-          if [ -d public ]; then
-            cp -r public/* /tmp/indian-gta6-apk/www/ 2>/dev/null || true
-          fi
+          # Also support full native Android SDK compilation from index.html if SDK is available
+          ANDROID_SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          BUILD_TOOLS=$(ls -d "$ANDROID_SDK/build-tools/"* 2>/dev/null | sort -V | tail -n 1 || true)
+          PLATFORM_DIR=$(ls -d "$ANDROID_SDK/platforms/android-"* 2>/dev/null | sort -V | tail -n 1 || true)
 
-          cd /tmp/indian-gta6-apk
-          cat << 'EOF' > package.json
-          {
-            "name": "indian-gta-6-openworld",
-            "version": "1.0.0",
-            "description": "Bharat Vice: Indian Open-World 3D Action Game",
-            "private": true
+          if [ -n "$BUILD_TOOLS" ] && [ -n "$PLATFORM_DIR" ] && [ -f "$PLATFORM_DIR/android.jar" ]; then
+            export PATH="$BUILD_TOOLS:$PATH"
+            ANDROID_JAR="$PLATFORM_DIR/android.jar"
+            rm -rf /tmp/apk-proj
+            mkdir -p /tmp/apk-proj/src/com/bharatvice/indiangta6
+            mkdir -p /tmp/apk-proj/res/drawable
+            mkdir -p /tmp/apk-proj/res/values
+            mkdir -p /tmp/apk-proj/assets
+            mkdir -p /tmp/apk-proj/obj
+
+            cp index.html /tmp/apk-proj/assets/index.html
+            if [ -f "public/pwa-192x192.png" ]; then
+              cp public/pwa-192x192.png /tmp/apk-proj/res/drawable/ic_launcher.png
+            else
+              python3 -c 'import base64; open("/tmp/apk-proj/res/drawable/ic_launcher.png","wb").write(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="))'
+            fi
+
+            cat << 'EOF' > /tmp/apk-proj/res/values/strings.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">Indian GTA 6</string>
+          </resources>
+          EOF
+
+            cat << 'EOF' > /tmp/apk-proj/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.bharatvice.indiangta6"
+              android:versionCode="1"
+              android:versionName="1.0.0">
+              <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="34" />
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <application
+                  android:label="@string/app_name"
+                  android:icon="@drawable/ic_launcher"
+                  android:usesCleartextTraffic="true"
+                  android:hardwareAccelerated="true"
+                  android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="sensorLandscape"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+            cat << 'EOF' > /tmp/apk-proj/src/com/bharatvice/indiangta6/MainActivity.java
+          package com.bharatvice.indiangta6;
+          import android.app.Activity;
+          import android.content.pm.ActivityInfo;
+          import android.graphics.Color;
+          import android.os.Bundle;
+          import android.view.View;
+          import android.view.Window;
+          import android.view.WindowManager;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          public class MainActivity extends Activity {
+              private WebView webView;
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  requestWindowFeature(Window.FEATURE_NO_TITLE);
+                  getWindow().setFlags(
+                      WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                      WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                  );
+                  setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                  webView = new WebView(this);
+                  webView.setBackgroundColor(Color.parseColor("#090A0F"));
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setDatabaseEnabled(true);
+                  s.setAllowFileAccess(true);
+                  s.setAllowContentAccess(true);
+                  s.setAllowFileAccessFromFileURLs(true);
+                  s.setAllowUniversalAccessFromFileURLs(true);
+                  s.setMediaPlaybackRequiresUserGesture(false);
+                  s.setLoadWithOverviewMode(true);
+                  s.setUseWideViewPort(true);
+                  s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                  webView.setWebChromeClient(new WebChromeClient());
+                  webView.setWebViewClient(new WebViewClient());
+                  setContentView(webView);
+                  webView.loadUrl("file:///android_asset/index.html");
+              }
           }
           EOF
 
-          npm install @capacitor/core@6.1.2 @capacitor/cli@6.1.2 @capacitor/android@6.1.2
+            aapt package -f -m -J /tmp/apk-proj/src -M /tmp/apk-proj/AndroidManifest.xml -S /tmp/apk-proj/res -I "$ANDROID_JAR"
+            javac --release 11 -d /tmp/apk-proj/obj -classpath "$ANDROID_JAR" /tmp/apk-proj/src/com/bharatvice/indiangta6/R.java /tmp/apk-proj/src/com/bharatvice/indiangta6/MainActivity.java
+            d8 --lib "$ANDROID_JAR" --output /tmp/apk-proj/ /tmp/apk-proj/obj/com/bharatvice/indiangta6/*.class
+            aapt package -f -M /tmp/apk-proj/AndroidManifest.xml -S /tmp/apk-proj/res -A /tmp/apk-proj/assets -I "$ANDROID_JAR" -F /tmp/apk-proj/unaligned.apk
+            (cd /tmp/apk-proj && aapt add unaligned.apk classes.dex)
+            zipalign -f 4 /tmp/apk-proj/unaligned.apk /tmp/apk-proj/aligned.apk
+            keytool -genkeypair -v -keystore /tmp/apk-proj/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null
+            apksigner sign --ks /tmp/apk-proj/debug.keystore --ks-pass pass:android --key-pass pass:android --out "$GITHUB_WORKSPACE/Indian-GTA-6.apk" /tmp/apk-proj/aligned.apk
+          fi
 
-          cat << 'EOF' > capacitor.config.json
-          {
-            "appId": "com.bharatvice.indiangta6",
-            "appName": "Indian GTA 6",
-            "webDir": "www",
-            "bundledWebRuntime": false,
-            "server": {
-              "androidScheme": "https",
-              "cleartext": true,
-              "allowNavigation": ["*"]
-            },
-            "android": {
-              "allowMixedContent": true,
-              "webContentsDebuggingEnabled": true
-            }
-          }
-          EOF
-
-          npx cap add android
-          npx cap sync android
-
-      - name: Configure Landscape 16:9 Fullscreen, Cleartext & Immersive Mode
-        run: |
-          cd /tmp/indian-gta6-apk
-          python3 - << 'PYEOF'
-          manifest_path = "android/app/src/main/AndroidManifest.xml"
-          with open(manifest_path, "r", encoding="utf-8") as f:
-              xml = f.read()
-
-          if "android:usesCleartextTraffic" not in xml:
-              xml = xml.replace(
-                  "<application",
-                  '<application android:usesCleartextTraffic="true" android:hardwareAccelerated="true"'
-              )
-
-          xml = xml.replace(
-              'android:name=".MainActivity"',
-              'android:name=".MainActivity"\n            android:screenOrientation="sensorLandscape"\n            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"'
-          )
-
-          with open(manifest_path, "w", encoding="utf-8") as f:
-              f.write(xml)
-          PYEOF
-
-      - name: Build Debug APK with Gradle
-        run: |
-          cd /tmp/indian-gta6-apk/android
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/Indian-GTA-6.apk"
-          mkdir -p "$GITHUB_WORKSPACE/public"
-          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/public/Indian-GTA-6.apk"
           ls -lh "$GITHUB_WORKSPACE/Indian-GTA-6.apk"
 
       - name: Save Indian-GTA-6.apk Directly into GitHub Repo Root
@@ -120,7 +156,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f Indian-GTA-6.apk public/Indian-GTA-6.apk
+          git add -f Indian-GTA-6.apk
           git diff --staged --quiet || (git commit -m "Auto-build Indian-GTA-6.apk [skip ci]" && git push)
 
       - name: Upload Indian-GTA-6-APK to GitHub Actions Artifacts

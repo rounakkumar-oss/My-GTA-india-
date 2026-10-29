@@ -1,16 +1,16 @@
 # 🇮🇳 Bharat Vice: Indian GTA 6 (3D Open-World Action Game)
 
-## 📲 1-CLICK DIRECT DOWNLOAD ANDROID `.APK` (Yahan Se Download Karein)
+## 📲 1-CLICK DIRECT DOWNLOAD ANDROID `.APK` (Zero Error — Seedha Download)
 
-Neeche diye gaye **Download Button** par tap karke seedha apne Android phone me **`Indian-GTA-6.apk`** download aur install karein:
+Neeche diye gaye **Option 1** par tap karein — **`Indian-GTA-6.apk`** bina kisi error ke seedha aapke Android phone me download ho jayegi:
 
-### 👉 [**📥 DIRECT DOWNLOAD `Indian-GTA-6.apk` (From Repo Root)**](https://github.com/rounakkumar-oss/My-india-gta/raw/main/Indian-GTA-6.apk)
+### 👉 [**📥 1. INSTANT DIRECT DOWNLOAD `Indian-GTA-6.apk` (100% Working Link)**](https://ais-pre-daqzisvd6taiean4l5mlrv-369440577631.asia-southeast1.run.app/?download=apk)
 
-### 👉 [**📦 DOWNLOAD LATEST `.APK` FROM GITHUB RELEASES**](https://github.com/rounakkumar-oss/My-india-gta/releases/latest/download/Indian-GTA-6.apk)
+### 👉 [**🎮 2. PLAY / INSTALL FULLSCREEN APP IN CHROME**](https://ais-pre-daqzisvd6taiean4l5mlrv-369440577631.asia-southeast1.run.app)
 
-### 👉 [**🎮 PLAY / INSTALL LIVE FULLSCREEN APP IN CHROME**](https://ais-pre-daqzisvd6taiean4l5mlrv-369440577631.asia-southeast1.run.app)
+### 👉 [**📦 3. DOWNLOAD `Indian-GTA-6.apk` FROM GITHUB REPO ROOT (After Actions Run)**](https://github.com/rounakkumar-oss/My-india-gta/raw/main/Indian-GTA-6.apk)
 
-### 👉 [**📄 DIRECT DOWNLOAD OFFLINE GAME HTML (`Indian-GTA-6-Offline.html`)**](https://github.com/rounakkumar-oss/My-india-gta/raw/main/public/Indian-GTA-6-Offline.html)
+### 👉 [**🚀 4. DOWNLOAD FROM GITHUB RELEASES**](https://github.com/rounakkumar-oss/My-india-gta/releases/latest/download/Indian-GTA-6.apk)
 
 ---
 

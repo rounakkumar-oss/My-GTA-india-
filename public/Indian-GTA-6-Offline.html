@@ -760,7 +760,7 @@
         </p>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:14px;">
           <button id="btn-start-game" class="cta-start-btn" style="margin-top:0;">▶ PLAY GAME NOW</button>
-          <a id="link-direct-download-hero" href="/Indian-GTA-6.apk" download="Indian-GTA-6.apk" target="_blank" rel="noopener" class="cta-start-btn" style="margin-top:0; background:linear-gradient(135deg, #16a34a 0%, #059669 100%); box-shadow:0 8px 25px rgba(22,163,74,0.5); text-decoration:none; display:inline-flex; align-items:center;">📥 DIRECT DOWNLOAD Indian-GTA-6.apk</a>
+          <button id="link-direct-download-hero" class="cta-start-btn" style="margin-top:0; background:linear-gradient(135deg, #16a34a 0%, #059669 100%); box-shadow:0 8px 25px rgba(22,163,74,0.5);">📥 DIRECT DOWNLOAD Indian-GTA-6.apk</button>
           <button id="btn-direct-install-hero" class="hud-chip-btn" style="padding:13px 16px; border-color:#38bdf8; background:rgba(14,165,233,0.25); color:#fff; font-weight:800; font-size:13px;">📲 INSTALL WEB APP</button>
           <button id="btn-spawn-ferrari-title" class="hud-chip-btn" style="padding:12px 14px;">🏎️ Start in Ferrari</button>
           <button id="btn-hero-apk-guide" class="hud-chip-btn" style="padding:12px 14px; border-color:#f59e0b; background:rgba(245,158,11,0.2);">⚙️ Options &amp; APK</button>
@@ -787,7 +787,7 @@
         <!-- Top-Center: Quick Teleport, Custom GLB & APK Drawer -->
         <div class="top-center-cluster">
           <div class="top-bar-actions interactive">
-            <a href="/Indian-GTA-6.apk" download="Indian-GTA-6.apk" target="_blank" rel="noopener" class="hud-chip-btn" style="border-color:#22c55e; background:rgba(22,163,74,0.35); color:#4ade80; text-decoration:none;">📥 Download .APK</a>
+            <button class="hud-chip-btn" id="btn-download-apk-hud" style="border-color:#22c55e; background:rgba(22,163,74,0.35); color:#4ade80;">📥 Download .APK</button>
             <button class="hud-chip-btn" id="btn-direct-install-hud" style="border-color:#38bdf8; background:rgba(14,165,233,0.3); color:#7dd3fc;">📲 Install App</button>
             <button class="hud-chip-btn" id="btn-open-drawer">⚙️ Lucia .GLB &amp; APK</button>
             <button class="hud-chip-btn" id="btn-summon-ferrari">🏎️ Ferrari</button>
@@ -914,9 +914,9 @@
           <div style="background:rgba(22,163,74,0.14); border:1px solid rgba(74,222,128,0.45); border-radius:8px; padding:10px 12px; font-size:12px; color:#f8fafc; line-height:1.5; margin-bottom:10px;">
             Ab aapko GitHub par jaane ki bilkul zaroorat nahi hai! Niche diye <strong>Green Button</strong> se game ko seedha apne Android phone me <strong>Fullscreen App</strong> ki tarah install karein, ya <strong>Direct Game File (.html)</strong> download karke Chrome me kabhi bhi offline khelein:
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
-              <a href="/Indian-GTA-6.apk" download="Indian-GTA-6.apk" target="_blank" rel="noopener" class="primary-btn" style="background:#16a34a; font-size:13px; padding:10px 16px; text-decoration:none; display:inline-flex; align-items:center;">📥 1. DIRECT DOWNLOAD Indian-GTA-6.apk</a>
+              <button class="primary-btn" id="btn-download-apk-modal" style="background:#16a34a; font-size:13px; padding:10px 16px;">📥 1. DIRECT DOWNLOAD Indian-GTA-6.apk</button>
               <button class="primary-btn" id="btn-direct-install-modal" style="background:#0284c7; font-size:13px; padding:10px 16px;">📲 2. Install Web App</button>
-              <a href="https://github.com/rounakkumar-oss/My-india-gta/raw/main/Indian-GTA-6.apk" target="_blank" rel="noopener" class="hud-chip-btn" style="border-color:#f59e0b; color:#fde047; text-decoration:none; padding:10px 14px;">🌐 3. Direct GitHub APK Link</a>
+              <a href="https://ais-pre-daqzisvd6taiean4l5mlrv-369440577631.asia-southeast1.run.app/?download=apk" target="_blank" rel="noopener" class="hud-chip-btn" style="border-color:#f59e0b; color:#fde047; text-decoration:none; padding:10px 14px;">🌐 3. Open Direct APK Download Tab</a>
             </div>
           </div>
 
@@ -3599,8 +3599,37 @@
         showToast('📲 DIRECT ANDROID APP INSTALL READY!');
       });
 
+      async function downloadRealSignedApk() {
+        showToast('📥 PREPARING INDIAN-GTA-6.APK DOWNLOAD...');
+        try {
+          var inIframe = false;
+          try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
+          if (inIframe) {
+            window.open('https://ais-pre-daqzisvd6taiean4l5mlrv-369440577631.asia-southeast1.run.app/?download=apk', '_blank', 'noopener');
+          }
+          var res = await fetch('/apk-base64.txt');
+          var b64 = (await res.text()).replace(/\s+/g, '');
+          var binStr = window.atob(b64);
+          var bytes = new Uint8Array(binStr.length);
+          for (var i = 0; i < binStr.length; i++) {
+            bytes[i] = binStr.charCodeAt(i);
+          }
+          var apkBlob = new Blob([bytes.buffer], { type: 'application/vnd.android.package-archive' });
+          var blobUrl = URL.createObjectURL(apkBlob);
+          var a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = 'Indian-GTA-6.apk';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 15000);
+          showToast('✅ INDIAN-GTA-6.APK DOWNLOADED! OPEN TO INSTALL');
+        } catch (err) {
+          window.open('https://ais-pre-daqzisvd6taiean4l5mlrv-369440577631.asia-southeast1.run.app/?download=apk', '_blank', 'noopener');
+        }
+      }
+
       function triggerDirectDownloadOrInstall() {
-        // 1. Trigger native Android Chrome WebAPK / PWA install prompt if available
         if (deferredInstallPrompt) {
           deferredInstallPrompt.prompt();
           deferredInstallPrompt.userChoice.then(function (choice) {
@@ -3611,33 +3640,25 @@
           });
           return;
         }
-
-        // 2. Always trigger direct download of Indian-GTA-6.apk
-        try {
-          var dlLink = document.createElement('a');
-          dlLink.href = '/Indian-GTA-6.apk';
-          dlLink.download = 'Indian-GTA-6.apk';
-          dlLink.target = '_blank';
-          document.body.appendChild(dlLink);
-          dlLink.click();
-          document.body.removeChild(dlLink);
-        } catch (err) {}
-
-        // 3. If running inside AI Studio preview iframe on mobile, also open top-level app URL so Chrome's "Install App / Add to Home Screen" works directly
-        var inIframe = false;
-        try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
-        if (inIframe) {
-          window.open('https://ais-pre-daqzisvd6taiean4l5mlrv-369440577631.asia-southeast1.run.app', '_blank', 'noopener');
-          showToast('DOWNLOADING GAME + OPENING DIRECT INSTALL TAB!');
-        } else {
-          showToast('DOWNLOAD STARTED! YA CHROME MENU (⋮) -> "INSTALL APP" DABAYEIN');
-          document.getElementById('settings-modal').classList.add('open');
-        }
+        downloadRealSignedApk();
       }
+
+      var btnDlHero = document.getElementById('link-direct-download-hero');
+      if (btnDlHero) btnDlHero.addEventListener('click', downloadRealSignedApk);
+      var btnDlHud = document.getElementById('btn-download-apk-hud');
+      if (btnDlHud) btnDlHud.addEventListener('click', downloadRealSignedApk);
+      var btnDlModal = document.getElementById('btn-download-apk-modal');
+      if (btnDlModal) btnDlModal.addEventListener('click', downloadRealSignedApk);
 
       var btnInstallHero = document.getElementById('btn-direct-install-hero');
       if (btnInstallHero) btnInstallHero.addEventListener('click', triggerDirectDownloadOrInstall);
       var btnInstallHud = document.getElementById('btn-direct-install-hud');
+      if (btnInstallHud) btnInstallHud.addEventListener('click', triggerDirectDownloadOrInstall);
+
+      // Auto-trigger APK download if opened with ?download=apk
+      if (window.location.search.indexOf('download=apk') !== -1) {
+        setTimeout(downloadRealSignedApk, 400);
+      }
       if (btnInstallHud) btnInstallHud.addEventListener('click', triggerDirectDownloadOrInstall);
       var btnInstallModal = document.getElementById('btn-direct-install-modal');
       if (btnInstallModal) btnInstallModal.addEventListener('click', triggerDirectDownloadOrInstall);
