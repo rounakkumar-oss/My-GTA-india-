@@ -1,0 +1,4093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Indian GTA 6" />
+  <meta name="theme-color" content="#090A0F" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <title>Bharat Vice: Indian Open-World 3D</title>
+  <meta name="description" content="3D Indian Open-World Action Game (GTA 6 meets Indian City) with Lucia-style GLB character, Ferrari & Auto-Rickshaw driving, Hindu Mandir & city landmarks, infinite NPC spawner, and Android APK GitHub Actions workflow." />
+  <meta property="og:title" content="Bharat Vice: Indian Open-World 3D" />
+  <meta property="og:description" content="3D Indian Open-World Action Game (GTA 6 meets Indian City) with Lucia-style GLB character, Ferrari & Auto-Rickshaw driving, Hindu Mandir & city landmarks, infinite NPC spawner, and Android APK GitHub Actions workflow." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- Google Fonts: Chakra Petch (Display/HUD) + Plus Jakarta Sans (UI) + JetBrains Mono (Telemetry) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700&family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Three.js r128 & Official Loaders / Utils -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
+
+  <style>
+    :root {
+      --bg-obsidian: rgba(10, 12, 18, 0.88);
+      --border-subtle: rgba(255, 255, 255, 0.14);
+      --saffron: #FF6B1A;
+      --gold: #F59E0B;
+      --gta-pink: #F43F5E;
+      --emerald: #10B981;
+      --cyan: #06B6D4;
+      --font-display: 'Chakra Petch', sans-serif;
+      --font-sans: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #07080c;
+      font-family: var(--font-sans);
+      color: #f8fafc;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+
+    /* 16:9 Landscape Auto-Rotation Wrapper so Mobile Portrait automatically locks to Landscape */
+    #app-stage {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #07080c;
+    }
+
+    @media screen and (orientation: portrait) and (max-width: 900px) {
+      #app-stage {
+        width: 100vh;
+        height: 100vw;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(90deg);
+        transform-origin: center center;
+      }
+    }
+
+    #webgl-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    #webgl-container canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Right-half invisible camera touch look zone */
+    #camera-touch-zone {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 55%;
+      height: 100%;
+      z-index: 4;
+      touch-action: none;
+    }
+
+    /* Low-occlusion HUD Overlay (No backdrop-filter over active WebGL canvas) */
+    #hud-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 18px;
+    }
+
+    .interactive {
+      pointer-events: auto;
+    }
+
+    /* Top Row: Mini-Map Radar (Left) + Center Notification + GTA Status Cluster (Right) */
+    .hud-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      width: 100%;
+    }
+
+    /* Top-Left Rotating Circular GPS Mini-Map Radar */
+    .radar-cluster {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-start;
+    }
+
+    .radar-frame {
+      position: relative;
+      width: 146px;
+      height: 146px;
+      border-radius: 50%;
+      background: rgba(9, 13, 22, 0.92);
+      border: 2.5px solid rgba(255, 255, 255, 0.24);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+      overflow: hidden;
+    }
+
+    #minimap-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 50%;
+    }
+
+    .radar-north-badge {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ef4444;
+      color: #fff;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.05em;
+    }
+
+    .location-strip {
+      background: var(--bg-obsidian);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #e2e8f0;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    /* Top-Center Action Banner & Custom GLB Drawer Toggle */
+    .top-center-cluster {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .top-bar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-obsidian);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 5px 10px;
+    }
+
+    .hud-chip-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: #f8fafc;
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 120ms ease, transform 120ms ease;
+    }
+
+    .hud-chip-btn:hover {
+      background: rgba(255, 107, 26, 0.25);
+      border-color: var(--saffron);
+    }
+
+    .hud-chip-btn:active {
+      transform: scale(0.96);
+    }
+
+    #toast-banner {
+      background: rgba(12, 15, 24, 0.92);
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      color: #fef3c7;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 6px 14px;
+      border-radius: 6px;
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    #toast-banner.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Top-Right GTA 6 / Indian Open-World Status Cluster */
+    .status-cluster {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      background: var(--bg-obsidian);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 10px 14px;
+      min-width: 225px;
+    }
+
+    .wanted-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      gap: 10px;
+    }
+
+    .fps-readout {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #94a3b8;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stars-track {
+      display: flex;
+      gap: 3px;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .star-icon {
+      color: rgba(255, 255, 255, 0.18);
+      transition: color 150ms ease, transform 150ms ease;
+    }
+
+    .star-icon.active {
+      color: #fbbf24;
+      text-shadow: 0 0 8px rgba(251, 191, 36, 0.7);
+    }
+
+    .cash-row {
+      font-family: var(--font-display);
+      font-size: 21px;
+      font-weight: 700;
+      color: #22c55e;
+      letter-spacing: 0.03em;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+    }
+
+    .bars-stack {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .bar-line {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      width: 100%;
+    }
+
+    .bar-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      width: 24px;
+      color: #cbd5e1;
+    }
+
+    .bar-outer {
+      flex: 1;
+      height: 7px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bar-inner-hp {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #ef4444, #22c55e);
+      transition: width 150ms ease;
+    }
+
+    .bar-inner-armor {
+      height: 100%;
+      width: 85%;
+      background: linear-gradient(90deg, #0284c7, #38bdf8);
+      transition: width 150ms ease;
+    }
+
+    .weapon-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 12px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    .ammo-count {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      color: #fbbf24;
+    }
+
+    /* Center Reticle Crosshair */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 24px;
+      height: 24px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 8;
+      transition: transform 120ms ease;
+    }
+
+    #crosshair.aiming {
+      transform: translate(-50%, -50%) scale(0.72);
+    }
+
+    /* Bottom Row: Virtual Thumb Joystick / Vehicle Pedals (Left) + Speedometer (Center) + Ergonomic Arc Buttons (Right) */
+    .hud-bottom-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      width: 100%;
+      position: relative;
+    }
+
+    /* Bottom-Left Floating 360 Virtual Joystick */
+    #joystick-zone {
+      position: relative;
+      width: 136px;
+      height: 136px;
+      margin-left: 8px;
+      margin-bottom: 6px;
+      border-radius: 50%;
+      background: rgba(12, 16, 26, 0.78);
+      border: 2px solid rgba(255, 255, 255, 0.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+    }
+
+    #joystick-knob {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #ff8a3d, #e04f00);
+      border: 2px solid rgba(255, 255, 255, 0.65);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+      transform: translate(0px, 0px);
+      pointer-events: none;
+    }
+
+    /* Driving Steering & Gas/Brake Controls (shown when in vehicle) */
+    #drive-controls-left {
+      display: none;
+      gap: 12px;
+      margin-left: 8px;
+      margin-bottom: 8px;
+    }
+
+    .steer-btn {
+      width: 68px;
+      height: 68px;
+      border-radius: 14px;
+      background: rgba(12, 16, 26, 0.88);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .steer-btn:active, .steer-btn.active {
+      background: rgba(255, 107, 26, 0.38);
+      border-color: var(--saffron);
+      transform: scale(0.95);
+    }
+
+    /* Center-Bottom Vehicle Speedometer */
+    #speedometer-hud {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      background: var(--bg-obsidian);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 6px 16px;
+      margin-bottom: 6px;
+    }
+
+    .speed-val {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 700;
+      color: #f8fafc;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    .speed-unit {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: #94a3b8;
+      letter-spacing: 0.08em;
+    }
+
+    /* Bottom-Right Ergonomic Arc Action Cluster */
+    .arc-controls-container {
+      position: relative;
+      width: 240px;
+      height: 175px;
+      margin-right: 4px;
+      margin-bottom: 2px;
+    }
+
+    .arc-btn {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(14, 18, 30, 0.88);
+      border: 2px solid rgba(255, 255, 255, 0.26);
+      color: #f8fafc;
+      font-family: var(--font-display);
+      font-weight: 700;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+      transition: transform 90ms ease, background 120ms ease, border-color 120ms ease;
+      touch-action: none;
+    }
+
+    .arc-btn span.lbl {
+      font-size: 9px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-top: 1px;
+    }
+
+    .arc-btn:active, .arc-btn.active {
+      transform: scale(0.92);
+    }
+
+    /* Primary Large FIRE / GAS Button */
+    #btn-fire {
+      width: 82px;
+      height: 82px;
+      right: 12px;
+      bottom: 12px;
+      background: radial-gradient(circle at 35% 35%, rgba(239, 68, 68, 0.92), rgba(185, 28, 28, 0.95));
+      border-color: rgba(254, 202, 202, 0.65);
+      font-size: 18px;
+    }
+
+    /* AIM / BRAKE Button */
+    #btn-aim {
+      width: 56px;
+      height: 56px;
+      right: 110px;
+      bottom: 8px;
+      border-color: rgba(56, 189, 248, 0.5);
+    }
+
+    /* SPRINT / DRIFT Button */
+    #btn-sprint {
+      width: 56px;
+      height: 56px;
+      right: 98px;
+      bottom: 74px;
+      border-color: rgba(16, 185, 129, 0.5);
+    }
+
+    /* JUMP / CAMERA Button */
+    #btn-jump {
+      width: 54px;
+      height: 54px;
+      right: 28px;
+      bottom: 108px;
+      border-color: rgba(245, 158, 11, 0.5);
+    }
+
+    /* ENTER / EXIT VEHICLE Button */
+    #btn-vehicle {
+      width: 58px;
+      height: 58px;
+      right: 172px;
+      bottom: 34px;
+      background: rgba(234, 88, 12, 0.88);
+      border-color: rgba(254, 215, 170, 0.7);
+    }
+
+    #btn-vehicle.nearby-highlight {
+      background: rgba(22, 163, 74, 0.95);
+      border-color: #bbf7d0;
+    }
+
+    /* HORN / SIREN Button */
+    #btn-horn {
+      width: 50px;
+      height: 50px;
+      right: 162px;
+      bottom: 104px;
+      border-color: rgba(250, 204, 21, 0.55);
+    }
+
+    /* Drawer Modal for Custom Lucia .glb URL & GitHub Actions APK Export */
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      background: rgba(5, 7, 12, 0.82);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      pointer-events: auto;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 680px;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: #0f1420;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      padding: 20px 24px;
+      color: #f8fafc;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 14px;
+    }
+
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      margin-bottom: 12px;
+    }
+
+    .glb-input {
+      flex: 1;
+      background: #070a10;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      color: #f8fafc;
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .primary-btn {
+      background: var(--saffron);
+      color: #fff;
+      border: none;
+      padding: 9px 16px;
+      border-radius: 6px;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .primary-btn:hover {
+      background: #ea580c;
+    }
+
+    /* Full-Viewport Title Screen Game Shell */
+    #title-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      background: linear-gradient(90deg, rgba(6, 8, 14, 0.88) 0%, rgba(6, 8, 14, 0.48) 55%, rgba(6, 8, 14, 0.15) 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 28px 40px;
+      pointer-events: auto;
+    }
+
+    #title-screen.hidden {
+      display: none;
+    }
+
+    .title-hero-box {
+      max-width: 520px;
+      margin-top: auto;
+      margin-bottom: auto;
+    }
+
+    .kicker-line {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #fbbf24;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .cta-start-btn {
+      margin-top: 20px;
+      background: linear-gradient(135deg, #ff6b1a 0%, #e11d48 100%);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      padding: 13px 28px;
+      border-radius: 8px;
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      box-shadow: 0 10px 28px rgba(244, 63, 94, 0.4);
+      transition: transform 140ms ease, box-shadow 140ms ease;
+    }
+
+    .cta-start-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 32px rgba(244, 63, 94, 0.55);
+    }
+
+    .controls-hint-line {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #cbd5e1;
+      letter-spacing: 0.03em;
+    }
+  </style>
+</head>
+<body>
+  <div id="app-stage">
+    <!-- 3D WebGL Canvas Mount -->
+    <div id="webgl-container"></div>
+
+    <!-- Invisible Right-Half Touch Area for 3rd-Person Camera Orbit -->
+    <div id="camera-touch-zone" class="interactive"></div>
+
+    <!-- Center Crosshair -->
+    <svg id="crosshair" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="1.8">
+      <circle cx="12" cy="12" r="2.2" fill="#ff6b1a" stroke="none" />
+      <line x1="12" y1="2" x2="12" y2="7" />
+      <line x1="12" y1="17" x2="12" y2="22" />
+      <line x1="2" y1="12" x2="7" y2="12" />
+      <line x1="17" y1="12" x2="22" y2="12" />
+    </svg>
+
+    <!-- Title Screen Overlay (Live 3D City Camera Pan in Background) -->
+    <div id="title-screen">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-family:var(--font-mono); font-size:12px; color:#e2e8f0;">16:9 LANDSCAPE CONSOLE EDITION · THREE.JS R128 PBR</span>
+        <button id="btn-title-devops" class="hud-chip-btn">APK &amp; Custom .GLB Settings</button>
+      </div>
+
+      <div class="title-hero-box">
+        <div class="kicker-line">OPEN-WORLD ACTION SANDBOX · BHARAT NAGAR</div>
+        <!-- Bespoke Inline SVG Title Lockup -->
+        <svg viewBox="0 0 500 118" width="100%" style="max-width:470px; display:block;">
+          <defs>
+            <linearGradient id="gtaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#FF7A18" />
+              <stop offset="50%" stop-color="#F43F5E" />
+              <stop offset="100%" stop-color="#F59E0B" />
+            </linearGradient>
+          </defs>
+          <text x="2" y="58" font-family="Chakra Petch, sans-serif" font-size="60" font-weight="700" font-style="italic" fill="url(#gtaGrad)" stroke="#ffffff" stroke-width="1.5">BHARAT VICE</text>
+          <text x="4" y="102" font-family="Chakra Petch, sans-serif" font-size="30" font-weight="700" fill="#F8FAFC" letter-spacing="4">INDIAN OPEN-WORLD VI</text>
+        </svg>
+        <p style="font-size:14px; line-height:1.55; color:#cbd5e1; margin-top:8px; max-width:46ch;">
+          Explore the Bhavya Hindu Mandir, Bharat State Bank, City Hospital, Vidya School, Public Park, and vibrant Bazaar streets. Drive the Draco 3D Ferrari, Auto-Rickshaw, or Police SUV.
+        </p>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:14px;">
+          <button id="btn-start-game" class="cta-start-btn" style="margin-top:0;">▶ PLAY GAME NOW</button>
+          <a id="link-direct-download-hero" href="/Indian-GTA-6.apk" download="Indian-GTA-6.apk" target="_blank" rel="noopener" class="cta-start-btn" style="margin-top:0; background:linear-gradient(135deg, #16a34a 0%, #059669 100%); box-shadow:0 8px 25px rgba(22,163,74,0.5); text-decoration:none; display:inline-flex; align-items:center;">📥 DIRECT DOWNLOAD Indian-GTA-6.apk</a>
+          <button id="btn-direct-install-hero" class="hud-chip-btn" style="padding:13px 16px; border-color:#38bdf8; background:rgba(14,165,233,0.25); color:#fff; font-weight:800; font-size:13px;">📲 INSTALL WEB APP</button>
+          <button id="btn-spawn-ferrari-title" class="hud-chip-btn" style="padding:12px 14px;">🏎️ Start in Ferrari</button>
+          <button id="btn-hero-apk-guide" class="hud-chip-btn" style="padding:12px 14px; border-color:#f59e0b; background:rgba(245,158,11,0.2);">⚙️ Options &amp; APK</button>
+        </div>
+      </div>
+
+      <div class="controls-hint-line">
+        WASD / Left Stick Move · Mouse / Right Touch Look · Space Jump · F / Car Icon Enter Vehicle · Click / Fire Shoot
+      </div>
+    </div>
+
+    <!-- Active Gameplay HUD -->
+    <div id="hud-layer">
+      <div class="hud-top-row">
+        <!-- Top-Left: Rotating Circular GPS Mini-Map Radar -->
+        <div class="radar-cluster interactive">
+          <div class="radar-frame" title="Live Rotating GPS Radar">
+            <canvas id="minimap-canvas" width="160" height="160"></canvas>
+            <div class="radar-north-badge" id="radar-north">N</div>
+          </div>
+          <div class="location-strip" id="hud-zone-name">📍 MG Road · Mandir Chowk</div>
+        </div>
+
+        <!-- Top-Center: Quick Teleport, Custom GLB & APK Drawer -->
+        <div class="top-center-cluster">
+          <div class="top-bar-actions interactive">
+            <a href="/Indian-GTA-6.apk" download="Indian-GTA-6.apk" target="_blank" rel="noopener" class="hud-chip-btn" style="border-color:#22c55e; background:rgba(22,163,74,0.35); color:#4ade80; text-decoration:none;">📥 Download .APK</a>
+            <button class="hud-chip-btn" id="btn-direct-install-hud" style="border-color:#38bdf8; background:rgba(14,165,233,0.3); color:#7dd3fc;">📲 Install App</button>
+            <button class="hud-chip-btn" id="btn-open-drawer">⚙️ Lucia .GLB &amp; APK</button>
+            <button class="hud-chip-btn" id="btn-summon-ferrari">🏎️ Ferrari</button>
+            <button class="hud-chip-btn" id="btn-summon-auto">🛺 Auto</button>
+            <button class="hud-chip-btn" id="btn-teleport-mandir">🛕 Mandir</button>
+            <button class="hud-chip-btn" id="btn-mute-audio">🔊</button>
+          </div>
+          <div id="toast-banner">VEHICLE ENTERED: FERRARI F8 TRIBUTO</div>
+        </div>
+
+        <!-- Top-Right: Authentic GTA 6 / Indian GTA Status Cluster -->
+        <div class="status-cluster interactive">
+          <div class="wanted-row">
+            <span class="fps-readout" id="hud-fps">60 FPS</span>
+            <div class="stars-track" id="hud-stars">
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+            </div>
+          </div>
+          <div class="cash-row" id="hud-cash">₹4,25,000</div>
+          <div class="bars-stack">
+            <div class="bar-line">
+              <span class="bar-label">HP</span>
+              <div class="bar-outer"><div class="bar-inner-hp" id="hud-hp-bar"></div></div>
+            </div>
+            <div class="bar-line">
+              <span class="bar-label">ARM</span>
+              <div class="bar-outer"><div class="bar-inner-armor" id="hud-armor-bar"></div></div>
+            </div>
+          </div>
+          <div class="weapon-row">
+            <span id="hud-weapon-name">🔫 Tactical Carbine</span>
+            <span class="ammo-count" id="hud-ammo">30 / 180</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Row: Thumb Joystick / Driving Pedals + Speedometer + Ergonomic Arc Buttons -->
+      <div class="hud-bottom-row">
+        <!-- Walking 360 Virtual Thumb Joystick -->
+        <div id="joystick-zone" class="interactive">
+          <div id="joystick-knob"></div>
+        </div>
+
+        <!-- Driving Left/Right Steering Buttons -->
+        <div id="drive-controls-left" class="interactive">
+          <button class="steer-btn" id="btn-steer-left">◀</button>
+          <button class="steer-btn" id="btn-steer-right">▶</button>
+        </div>
+
+        <!-- Center Vehicle Speedometer -->
+        <div id="speedometer-hud">
+          <div class="speed-val" id="hud-speed">0</div>
+          <div class="speed-unit" id="hud-vehicle-label">KM/H · GEAR 1</div>
+        </div>
+
+        <!-- Bottom-Right Ergonomic Arc Action Buttons -->
+        <div class="arc-controls-container interactive">
+          <button class="arc-btn" id="btn-fire" title="Fire Weapon / Accelerate">
+            <span>🔥</span>
+            <span class="lbl" id="lbl-fire">FIRE</span>
+          </button>
+          <button class="arc-btn" id="btn-aim" title="Aim / Brake & Reverse">
+            <span>🎯</span>
+            <span class="lbl" id="lbl-aim">AIM</span>
+          </button>
+          <button class="arc-btn" id="btn-sprint" title="Sprint / Handbrake Drift">
+            <span>🏃</span>
+            <span class="lbl" id="lbl-sprint">SPRINT</span>
+          </button>
+          <button class="arc-btn" id="btn-jump" title="Jump / Reset Car">
+            <span>⬆️</span>
+            <span class="lbl" id="lbl-jump">JUMP</span>
+          </button>
+          <button class="arc-btn" id="btn-vehicle" title="Enter or Exit Nearby Vehicle">
+            <span>🚗</span>
+            <span class="lbl" id="lbl-vehicle">DRIVE</span>
+          </button>
+          <button class="arc-btn" id="btn-horn" title="Horn / Police Siren">
+            <span>📢</span>
+            <span class="lbl">HORN</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Lucia .GLB Loader & GitHub Actions Android APK Drawer Modal -->
+    <div class="modal-backdrop" id="settings-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title">Lucia 3D Character (.GLB) &amp; Android APK Builder</div>
+          <button class="hud-chip-btn" id="btn-close-drawer">✕ Close (Esc)</button>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="font-size:12px; font-weight:700; color:#cbd5e1; display:block;">
+            LOAD CUSTOM LUCIA .GLB MODEL URL (WITH SKELETAL ANIMATIONS)
+          </label>
+          <div class="input-group">
+            <input
+              type="text"
+              id="custom-glb-input"
+              class="glb-input"
+              value="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/Xbot.glb"
+              placeholder="Paste any .glb URL (e.g. Xbot.glb, Soldier.glb, custom ReadyPlayerMe .glb)"
+            />
+            <button class="primary-btn" id="btn-load-custom-glb">Load .GLB Live</button>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="hud-chip-btn preset-glb-btn" data-url="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/Xbot.glb">Preset 1: Lucia Xbot.glb</button>
+            <button class="hud-chip-btn preset-glb-btn" data-url="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/Soldier.glb">Preset 2: Tactical Soldier.glb</button>
+            <button class="hud-chip-btn" id="btn-clear-wanted">⭐ Clear Wanted Stars</button>
+            <button class="hud-chip-btn" id="btn-lock-landscape">📱 Lock 16:9 Landscape Fullscreen</button>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid rgba(255,255,255,0.12); padding-top: 12px;">
+          <div style="font-size:14px; font-weight:800; color:#4ade80; margin-bottom:8px;">
+            📲 BINA GITHUB KE SEEDHA PHONE ME INSTALL / DOWNLOAD KAREIN (1-CLICK DIRECT)
+          </div>
+          <div style="background:rgba(22,163,74,0.14); border:1px solid rgba(74,222,128,0.45); border-radius:8px; padding:10px 12px; font-size:12px; color:#f8fafc; line-height:1.5; margin-bottom:10px;">
+            Ab aapko GitHub par jaane ki bilkul zaroorat nahi hai! Niche diye <strong>Green Button</strong> se game ko seedha apne Android phone me <strong>Fullscreen App</strong> ki tarah install karein, ya <strong>Direct Game File (.html)</strong> download karke Chrome me kabhi bhi offline khelein:
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+              <a href="/Indian-GTA-6.apk" download="Indian-GTA-6.apk" target="_blank" rel="noopener" class="primary-btn" style="background:#16a34a; font-size:13px; padding:10px 16px; text-decoration:none; display:inline-flex; align-items:center;">📥 1. DIRECT DOWNLOAD Indian-GTA-6.apk</a>
+              <button class="primary-btn" id="btn-direct-install-modal" style="background:#0284c7; font-size:13px; padding:10px 16px;">📲 2. Install Web App</button>
+              <a href="https://github.com/rounakkumar-oss/My-india-gta/raw/main/Indian-GTA-6.apk" target="_blank" rel="noopener" class="hud-chip-btn" style="border-color:#f59e0b; color:#fde047; text-decoration:none; padding:10px 14px;">🌐 3. Direct GitHub APK Link</a>
+            </div>
+          </div>
+
+          <div style="font-size:12px; font-weight:700; color:#93c5fd; margin-bottom:6px; margin-top:10px;">
+            🚀 OPTIONAL: APNE GITHUB REPO (<code>rounakkumar-oss/My-india-gta</code>) ME 1-CLICK AUTO-UPLOAD KAREIN
+          </div>
+          <div style="background:rgba(15,23,42,0.9); border:1px solid rgba(147,197,253,0.3); border-radius:8px; padding:8px 10px; font-size:11px; color:#cbd5e1; margin-bottom:8px;">
+            Aapke screenshot me <code>rounakkumar-oss/My-india-gta</code> khali tha isliye wahan download button nahi dikha. Agar aapko GitHub se hi <code>.apk</code> banwani hai, to apna GitHub Token daal kar <strong>Auto-Push to GitHub</strong> dabayein ya niche se files download karein:
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
+              <input type="text" id="gh-repo-input" class="glb-input" value="rounakkumar-oss/My-india-gta" style="max-width:210px; padding:6px 8px; font-size:11px;" placeholder="username/repo" />
+              <input type="password" id="gh-token-input" class="glb-input" style="padding:6px 8px; font-size:11px;" placeholder="Paste GitHub Token (ghp_...) for 1-Click Auto Push" />
+              <button class="primary-btn" id="btn-auto-push-github" style="background:#7c3aed; padding:6px 12px; font-size:11px;">🚀 Auto-Push to My GitHub</button>
+            </div>
+            <div id="gh-push-status" style="margin-top:4px; font-family:var(--font-mono); font-size:11px; color:#fde047;"></div>
+          </div>
+
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+            <button class="primary-btn" id="btn-download-html">⬇ Download index.html</button>
+            <button class="primary-btn" id="btn-copy-html" style="background:#2563eb;">📋 Copy index.html Code</button>
+            <button class="primary-btn" id="btn-download-workflow" style="background:#16a34a;">⬇ Download build-apk.yml</button>
+            <button class="hud-chip-btn" id="btn-copy-workflow">📋 Copy build-apk.yml Code</button>
+          </div>
+          <textarea
+            id="code-export-box"
+            readonly
+            placeholder="Upar 'Copy index.html Code' ya 'Copy build-apk.yml Code' par click karein — code yahan bhi aa jayega aur automatic Copy ho jayega!"
+            style="width:100%; height:70px; background:#05070b; color:#4ade80; border:1px solid rgba(255,255,255,0.22); border-radius:6px; padding:8px; font-family:var(--font-mono); font-size:11px; user-select:all; -webkit-user-select:all;"
+          ></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // ============================================================================
+      // 1. NATIVE ANDROID WEBVIEW & 16:9 LANDSCAPE ORIENTATION LOCK
+      // ============================================================================
+      window.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+      document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+      function lockLandscapeFullscreen() {
+        var docEl = document.documentElement;
+        if (docEl.requestFullscreen) {
+          docEl.requestFullscreen().catch(function () {});
+        } else if (docEl.webkitRequestFullscreen) {
+          docEl.webkitRequestFullscreen();
+        }
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(function () {});
+        }
+      }
+
+      // ============================================================================
+      // 2. WEB AUDIO API PROCEDURAL SYNTHESIZER (GUNSHOTS, HORN, SIREN, ENGINE)
+      // ============================================================================
+      var Sfx = {
+        ctx: null,
+        muted: false,
+        init: function () {
+          if (!this.ctx) {
+            var AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        },
+        playGunshot: function () {
+          if (this.muted) return;
+          this.init();
+          if (!this.ctx) return;
+          var now = this.ctx.currentTime;
+
+          // White noise burst for muzzle blast
+          var bufferSize = this.ctx.sampleRate * 0.14;
+          var buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          var data = buffer.getChannelData(0);
+          for (var i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.035));
+          }
+          var noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          var filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(1100, now);
+
+          var gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.55, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.13);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+
+          // Low punch oscillator
+          var osc = this.ctx.createOscillator();
+          var oscGain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(160, now);
+          osc.frequency.exponentialRampToValueAtTime(38, now + 0.09);
+          oscGain.gain.setValueAtTime(0.45, now);
+          oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+          osc.connect(oscGain);
+          oscGain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.09);
+        },
+        playIndianHorn: function (isPolice) {
+          if (this.muted) return;
+          this.init();
+          if (!this.ctx) return;
+          var now = this.ctx.currentTime;
+          var freqs = isPolice ? [660, 880] : [440, 554.37, 659.25];
+          for (var i = 0; i < freqs.length; i++) {
+            var osc = this.ctx.createOscillator();
+            var gain = this.ctx.createGain();
+            osc.type = isPolice ? 'square' : 'sawtooth';
+            osc.frequency.setValueAtTime(freqs[i], now);
+            if (isPolice) {
+              osc.frequency.linearRampToValueAtTime(freqs[i] * 1.25, now + 0.22);
+              osc.frequency.linearRampToValueAtTime(freqs[i], now + 0.44);
+            }
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.008, now + 0.45);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.46);
+          }
+        },
+        playTempleBell: function () {
+          if (this.muted) return;
+          this.init();
+          if (!this.ctx) return;
+          var now = this.ctx.currentTime;
+          var partials = [528, 1056, 1584, 2112];
+          for (var i = 0; i < partials.length; i++) {
+            var osc = this.ctx.createOscillator();
+            var gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(partials[i], now);
+            gain.gain.setValueAtTime(0.12 / (i + 1), now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 1.45);
+          }
+        }
+      };
+
+      // ============================================================================
+      // 3. SOFTWARE WEBGL GUARD & RENDERER INITIALIZATION
+      // ============================================================================
+      var isSoftwareGl = (function () {
+        try {
+          var probeCanvas = document.createElement('canvas');
+          var gl = probeCanvas.getContext('webgl2') || probeCanvas.getContext('webgl');
+          if (!gl) return true;
+          var ext = gl.getExtension('WEBGL_debug_renderer_info');
+          var param = ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER;
+          var gpu = String(gl.getParameter(param));
+          var lose = gl.getExtension('WEBGL_lose_context');
+          if (lose) lose.loseContext();
+          return /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(gpu);
+        } catch (e) {
+          return false;
+        }
+      })();
+
+      var container = document.getElementById('webgl-container');
+      var scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0xeb9864, 0.0028);
+
+      var camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.25, 650);
+      camera.position.set(0, 8, -18);
+
+      var renderer = new THREE.WebGLRenderer({
+        antialias: !isSoftwareGl,
+        powerPreference: 'high-performance'
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.08;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      var maxAnisotropy = renderer.capabilities.getMaxAnisotropy() || 1;
+
+      // Procedural Studio Environment Map via PMREMGenerator for Metallic Paint & Glass
+      (function buildStudioEnvMap() {
+        try {
+          var pmrem = new THREE.PMREMGenerator(renderer);
+          pmrem.compileCubemapShader();
+          var envScene = new THREE.Scene();
+          envScene.background = new THREE.Color(0xd98a5c);
+
+          var skyDome = new THREE.Mesh(
+            new THREE.SphereGeometry(40, 16, 12),
+            new THREE.MeshBasicMaterial({ color: 0xffe4b5, side: THREE.BackSide })
+          );
+          envScene.add(skyDome);
+
+          var groundDisc = new THREE.Mesh(
+            new THREE.CircleGeometry(40, 16),
+            new THREE.MeshBasicMaterial({ color: 0x22262e, side: THREE.DoubleSide })
+          );
+          groundDisc.rotation.x = -Math.PI / 2;
+          groundDisc.position.y = -5;
+          envScene.add(groundDisc);
+
+          // Studio softbox strips for crisp automotive reflections
+          var stripGeo = new THREE.PlaneGeometry(18, 4);
+          var stripMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+          for (var i = 0; i < 4; i++) {
+            var s = new THREE.Mesh(stripGeo, stripMat);
+            var ang = (i * Math.PI) / 2;
+            s.position.set(Math.cos(ang) * 16, 10, Math.sin(ang) * 16);
+            s.lookAt(0, 0, 0);
+            envScene.add(s);
+          }
+          scene.environment = pmrem.fromScene(envScene, 0.04).texture;
+          pmrem.dispose();
+        } catch (e) {}
+      })();
+
+      // ============================================================================
+      // 4. GOLDEN-HOUR INDIAN SUNSET SKY DOME SHADER & DIRECTIONAL SUN SHADOWS
+      // ============================================================================
+      var skyUniforms = {
+        topColor: { value: new THREE.Color(0x1b294a) },
+        midColor: { value: new THREE.Color(0xc85a32) },
+        bottomColor: { value: new THREE.Color(0xf6b26b) },
+        sunDir: { value: new THREE.Vector3(0.55, 0.32, 0.77).normalize() }
+      };
+
+      var skyMat = new THREE.ShaderMaterial({
+        uniforms: skyUniforms,
+        vertexShader: [
+          'varying vec3 vWorldPosition;',
+          'void main() {',
+          '  vec4 worldPosition = modelMatrix * vec4(position, 1.0);',
+          '  vWorldPosition = worldPosition.xyz;',
+          '  gl_Position = projectionMatrix * viewMatrix * worldPosition;',
+          '}'
+        ].join('\n'),
+        fragmentShader: [
+          'uniform vec3 topColor;',
+          'uniform vec3 midColor;',
+          'uniform vec3 bottomColor;',
+          'uniform vec3 sunDir;',
+          'varying vec3 vWorldPosition;',
+          'void main() {',
+          '  vec3 dir = normalize(vWorldPosition);',
+          '  float h = clamp(dir.y, 0.0, 1.0);',
+          '  vec3 col = mix(bottomColor, midColor, smoothstep(0.0, 0.28, h));',
+          '  col = mix(col, topColor, smoothstep(0.28, 0.88, h));',
+          '  float sunAmt = max(dot(dir, sunDir), 0.0);',
+          '  col += vec3(1.0, 0.72, 0.35) * pow(sunAmt, 24.0) * 0.65;',
+          '  col += vec3(1.0, 0.95, 0.8) * smoothstep(0.996, 0.9995, sunAmt) * 2.2;',
+          '  gl_FragColor = vec4(col, 1.0);',
+          '}'
+        ].join('\n'),
+        side: THREE.BackSide,
+        depthWrite: false
+      });
+      var skyDomeMesh = new THREE.Mesh(new THREE.SphereGeometry(520, 32, 20), skyMat);
+      scene.add(skyDomeMesh);
+
+      var hemiLight = new THREE.HemisphereLight(0xffd2a6, 0x2b3442, 0.72);
+      hemiLight.position.set(0, 120, 0);
+      scene.add(hemiLight);
+
+      var sunLight = new THREE.DirectionalLight(0xffdfba, 1.45);
+      sunLight.position.set(95, 78, 120);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = isSoftwareGl ? 1024 : 2048;
+      sunLight.shadow.mapSize.height = isSoftwareGl ? 1024 : 2048;
+      sunLight.shadow.camera.near = 10;
+      sunLight.shadow.camera.far = 320;
+      var dShadow = 95;
+      sunLight.shadow.camera.left = -dShadow;
+      sunLight.shadow.camera.right = dShadow;
+      sunLight.shadow.camera.top = dShadow;
+      sunLight.shadow.camera.bottom = -dShadow;
+      sunLight.shadow.bias = -0.0005;
+      scene.add(sunLight);
+      scene.add(sunLight.target);
+
+      // ============================================================================
+      // 5. PROCEDURAL PBR CANVAS TEXTURE ENGINE (BUMP, ROUGHNESS, EMISSIVE, ALBEDO)
+      // ============================================================================
+      function makeCanvasTex(w, h, drawFn, isColor, repeatX, repeatY) {
+        var c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        var ctx = c.getContext('2d');
+        drawFn(ctx, w, h);
+        var tex = new THREE.CanvasTexture(c);
+        if (isColor) tex.encoding = THREE.sRGBEncoding;
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(repeatX || 1, repeatY || 1);
+        tex.anisotropy = maxAnisotropy;
+        return tex;
+      }
+
+      // 5.1 Asphalt Road Albedo & Bump Texture
+      var asphaltMap = makeCanvasTex(512, 512, function (ctx, w, h) {
+        ctx.fillStyle = '#1f232b';
+        ctx.fillRect(0, 0, w, h);
+        for (var i = 0; i < 6500; i++) {
+          var v = 24 + Math.floor(Math.random() * 26);
+          ctx.fillStyle = 'rgb(' + v + ',' + v + ',' + (v + 3) + ')';
+          ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+        }
+        // Subtle tire wear tracks
+        ctx.fillStyle = 'rgba(15, 17, 22, 0.35)';
+        ctx.fillRect(w * 0.2, 0, w * 0.14, h);
+        ctx.fillRect(w * 0.66, 0, w * 0.14, h);
+      }, true, 1, 1);
+
+      var asphaltBump = makeCanvasTex(256, 256, function (ctx, w, h) {
+        ctx.fillStyle = '#808080';
+        ctx.fillRect(0, 0, w, h);
+        for (var i = 0; i < 4500; i++) {
+          var g = Math.floor(Math.random() * 255);
+          ctx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')';
+          ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+        }
+      }, false, 8, 8);
+
+      // 5.2 Tiled Footpath Texture
+      var footpathTex = makeCanvasTex(256, 256, function (ctx, w, h) {
+        ctx.fillStyle = '#7c828d';
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = '#535862';
+        ctx.lineWidth = 3;
+        var step = 32;
+        for (var x = 0; x <= w; x += step) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        }
+        for (var y = 0; y <= h; y += step) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+        }
+        for (var i = 0; i < 800; i++) {
+          ctx.fillStyle = 'rgba(255,255,255,0.06)';
+          ctx.fillRect(Math.random() * w, Math.random() * h, 3, 3);
+        }
+      }, true, 4, 40);
+
+      // 5.3 Grass & Soil Ground Texture
+      var grassTex = makeCanvasTex(512, 512, function (ctx, w, h) {
+        ctx.fillStyle = '#385728';
+        ctx.fillRect(0, 0, w, h);
+        for (var i = 0; i < 7000; i++) {
+          var r = 45 + Math.floor(Math.random() * 35);
+          var g = 72 + Math.floor(Math.random() * 45);
+          var b = 30 + Math.floor(Math.random() * 20);
+          ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+          ctx.fillRect(Math.random() * w, Math.random() * h, 3, 3);
+        }
+      }, true, 45, 45);
+
+      // 5.4 Carved Mandir Sandstone Texture
+      var mandirStoneTex = makeCanvasTex(256, 256, function (ctx, w, h) {
+        ctx.fillStyle = '#d96b38';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#b85224';
+        for (var y = 0; y < h; y += 24) {
+          ctx.fillRect(0, y, w, 3);
+          for (var x = 0; x < w; x += 32) {
+            ctx.strokeStyle = '#f39c6b';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x + 4, y + 5, 24, 14);
+          }
+        }
+      }, true, 2, 2);
+
+      // 5.5 Multi-Story Building Facade Generator (Albedo + Emissive Window Maps)
+      function makeBuildingFacadeMaterial(wallColor, trimColor, rows, cols) {
+        var map = makeCanvasTex(512, 512, function (ctx, w, h) {
+          ctx.fillStyle = wallColor;
+          ctx.fillRect(0, 0, w, h);
+          // Plaster weathering
+          for (var i = 0; i < 1500; i++) {
+            ctx.fillStyle = 'rgba(0,0,0,0.035)';
+            ctx.fillRect(Math.random() * w, Math.random() * h, 4, 4);
+          }
+          var padX = w / cols;
+          var padY = h / rows;
+          for (var r = 0; r < rows; r++) {
+            // Floor ledge band
+            ctx.fillStyle = trimColor;
+            ctx.fillRect(0, r * padY, w, 6);
+            for (var c = 0; c < cols; c++) {
+              var wx = c * padX + padX * 0.18;
+              var wy = r * padY + padY * 0.22;
+              var ww = padX * 0.64;
+              var wh = padY * 0.58;
+              ctx.fillStyle = '#142030';
+              ctx.fillRect(wx, wy, ww, wh);
+              ctx.strokeStyle = '#e2e8f0';
+              ctx.lineWidth = 3;
+              ctx.strokeRect(wx, wy, ww, wh);
+              // Window panes
+              ctx.fillStyle = '#334155';
+              ctx.fillRect(wx + ww * 0.48, wy, 3, wh);
+              ctx.fillRect(wx, wy + wh * 0.5, ww, 3);
+            }
+          }
+        }, true, 1, 1);
+
+        var emissiveMap = makeCanvasTex(512, 512, function (ctx, w, h) {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, w, h);
+          var padX = w / cols;
+          var padY = h / rows;
+          for (var r = 0; r < rows; r++) {
+            for (var c = 0; c < cols; c++) {
+              if ((r + c * 3) % 2 === 0) {
+                var wx = c * padX + padX * 0.22;
+                var wy = r * padY + padY * 0.26;
+                var ww = padX * 0.56;
+                var wh = padY * 0.5;
+                ctx.fillStyle = (r + c) % 3 === 0 ? '#ffdfa3' : '#ffd166';
+                ctx.fillRect(wx, wy, ww, wh);
+              }
+            }
+          }
+        }, true, 1, 1);
+
+        return new THREE.MeshStandardMaterial({
+          map: map,
+          bumpMap: asphaltBump,
+          bumpScale: 0.04,
+          roughness: 0.72,
+          metalness: 0.08,
+          emissive: new THREE.Color(0xffffff),
+          emissiveMap: emissiveMap,
+          emissiveIntensity: 0.35
+        });
+      }
+
+      // 5.6 Glowing Signboard Texture Generator
+      function makeSignboardMaterial(titleText, subText, bgHex, fgHex, borderHex) {
+        var tex = makeCanvasTex(512, 128, function (ctx, w, h) {
+          ctx.fillStyle = bgHex;
+          ctx.fillRect(0, 0, w, h);
+          ctx.strokeStyle = borderHex || '#fbbf24';
+          ctx.lineWidth = 8;
+          ctx.strokeRect(6, 6, w - 12, h - 12);
+
+          ctx.fillStyle = fgHex || '#ffffff';
+          ctx.font = 'bold 44px "Chakra Petch", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(titleText, w / 2, subText ? h * 0.4 : h * 0.52);
+
+          if (subText) {
+            ctx.fillStyle = borderHex || '#fde047';
+            ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(subText, w / 2, h * 0.76);
+          }
+        }, true, 1, 1);
+
+        return new THREE.MeshStandardMaterial({
+          map: tex,
+          emissiveMap: tex,
+          emissive: new THREE.Color(0xffffff),
+          emissiveIntensity: 0.65,
+          roughness: 0.25,
+          metalness: 0.2
+        });
+      }
+
+      // ============================================================================
+      // 6. SHARED MATERIALS & COLLISION REGISTRY
+      // ============================================================================
+      var colliders = []; // { x, z, rx, rz, name }
+      function addBoxCollider(x, z, rx, rz, name) {
+        colliders.push({ x: x, z: z, rx: rx, rz: rz, name: name || 'building' });
+      }
+
+      var sharedMats = {
+        asphalt: new THREE.MeshStandardMaterial({
+          map: asphaltMap,
+          bumpMap: asphaltBump,
+          bumpScale: 0.05,
+          roughness: 0.82,
+          metalness: 0.05
+        }),
+        footpath: new THREE.MeshStandardMaterial({
+          map: footpathTex,
+          bumpMap: asphaltBump,
+          bumpScale: 0.03,
+          roughness: 0.85,
+          metalness: 0.04
+        }),
+        stone: new THREE.MeshStandardMaterial({
+          map: mandirStoneTex,
+          bumpMap: asphaltBump,
+          bumpScale: 0.08,
+          roughness: 0.68,
+          metalness: 0.05
+        }),
+        gold: new THREE.MeshStandardMaterial({
+          color: 0xffc125,
+          roughness: 0.18,
+          metalness: 0.92
+        }),
+        chrome: new THREE.MeshStandardMaterial({
+          color: 0xe2e8f0,
+          roughness: 0.14,
+          metalness: 0.95
+        }),
+        darkMetal: new THREE.MeshStandardMaterial({
+          color: 0x1e293b,
+          roughness: 0.4,
+          metalness: 0.78
+        }),
+        glass: new THREE.MeshPhysicalMaterial({
+          color: 0x7dd3fc,
+          roughness: 0.08,
+          metalness: 0.15,
+          clearcoat: 1.0,
+          transparent: true,
+          opacity: 0.68
+        }),
+        waterTankBlack: new THREE.MeshStandardMaterial({
+          color: 0x111318,
+          roughness: 0.45,
+          metalness: 0.15
+        }),
+        whiteMarble: new THREE.MeshStandardMaterial({
+          color: 0xf8fafc,
+          bumpMap: asphaltBump,
+          bumpScale: 0.015,
+          roughness: 0.3,
+          metalness: 0.05
+        }),
+        rubberTire: new THREE.MeshStandardMaterial({
+          color: 0x141619,
+          roughness: 0.88,
+          metalness: 0.05
+        })
+      };
+
+      // ============================================================================
+      // 7. COMPOSITE 3D PROPS (TREES, WATER TANKS, DISH ANTENNAS, STREETLAMPS)
+      // ============================================================================
+      // 7.1 Detailed Rooftop Black Syntax Water Tank (Cylinder + Ribs + Dome Lid + Pipe)
+      function createRooftopWaterTank() {
+        var group = new THREE.Group();
+        var body = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 1.35, 14), sharedMats.waterTankBlack);
+        body.position.y = 0.675;
+        body.castShadow = true;
+        group.add(body);
+
+        for (var i = 0; i < 3; i++) {
+          var rib = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.035, 6, 16), sharedMats.waterTankBlack);
+          rib.rotation.x = Math.PI / 2;
+          rib.position.y = 0.35 + i * 0.35;
+          group.add(rib);
+        }
+
+        var lid = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.16, 12), sharedMats.waterTankBlack);
+        lid.position.y = 1.42;
+        group.add(lid);
+
+        var pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.1, 8), sharedMats.chrome);
+        pipe.position.set(0.72, 0.55, 0);
+        group.add(pipe);
+        return group;
+      }
+
+      // 7.2 Detailed Parabolic Rooftop Dish Antenna
+      function createDishAntenna() {
+        var group = new THREE.Group();
+        var stand = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.9, 8), sharedMats.darkMetal);
+        stand.position.y = 0.45;
+        group.add(stand);
+
+        var pts = [];
+        for (var i = 0; i <= 6; i++) {
+          var r = (i / 6) * 0.55;
+          pts.push(new THREE.Vector2(r, (r * r) * 0.45));
+        }
+        var dishGeo = new THREE.LatheGeometry(pts, 14);
+        var dishMat = new THREE.MeshStandardMaterial({ color: 0xdbeafe, roughness: 0.4, metalness: 0.5, side: THREE.DoubleSide });
+        var dish = new THREE.Mesh(dishGeo, dishMat);
+        dish.position.set(0, 0.85, 0);
+        dish.rotation.x = Math.PI / 3;
+        group.add(dish);
+
+        var lnbArm = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.45, 6), sharedMats.darkMetal);
+        lnbArm.position.set(0, 1.0, 0.22);
+        lnbArm.rotation.x = Math.PI / 3;
+        group.add(lnbArm);
+        return group;
+      }
+
+      // 7.3 Multi-Branched Organic Indian Banyan Tree (NO single cones/spheres)
+      var trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, bumpMap: asphaltBump, bumpScale: 0.08, roughness: 0.9 });
+      var leafMats = [
+        new THREE.MeshStandardMaterial({ color: 0x2d6a3e, roughness: 0.78 }),
+        new THREE.MeshStandardMaterial({ color: 0x3b7a3e, roughness: 0.75 }),
+        new THREE.MeshStandardMaterial({ color: 0x4d8b31, roughness: 0.8 })
+      ];
+
+      function createBanyanTree(scale) {
+        var s = scale || 1;
+        var group = new THREE.Group();
+
+        // Tapered gnarly main trunk
+        var mainTrunk = new THREE.Mesh(new THREE.CylinderGeometry(0.42 * s, 0.72 * s, 3.6 * s, 9), trunkMat);
+        mainTrunk.position.y = 1.8 * s;
+        mainTrunk.castShadow = true;
+        mainTrunk.receiveShadow = true;
+        group.add(mainTrunk);
+
+        // 4 Secondary angled boughs + aerial prop roots
+        for (var i = 0; i < 4; i++) {
+          var ang = (i * Math.PI) / 2 + 0.3;
+          var branch = new THREE.Mesh(new THREE.CylinderGeometry(0.18 * s, 0.32 * s, 2.8 * s, 7), trunkMat);
+          branch.position.set(Math.cos(ang) * 0.9 * s, 3.4 * s, Math.sin(ang) * 0.9 * s);
+          branch.rotation.z = -Math.cos(ang) * 0.55;
+          branch.rotation.x = Math.sin(ang) * 0.55;
+          branch.castShadow = true;
+          group.add(branch);
+
+          // Aerial hanging root reaching ground
+          var propRoot = new THREE.Mesh(new THREE.CylinderGeometry(0.06 * s, 0.09 * s, 3.1 * s, 6), trunkMat);
+          propRoot.position.set(Math.cos(ang) * 1.55 * s, 1.55 * s, Math.sin(ang) * 1.55 * s);
+          group.add(propRoot);
+
+          // Multi-layered flattened foliage canopy pads
+          var canopyPad = new THREE.Mesh(new THREE.DodecahedronGeometry(1.95 * s, 1), leafMats[i % leafMats.length]);
+          canopyPad.scale.set(1.35, 0.62, 1.35);
+          canopyPad.position.set(Math.cos(ang) * 1.7 * s, 4.5 * s + (i % 2) * 0.4 * s, Math.sin(ang) * 1.7 * s);
+          canopyPad.castShadow = true;
+          group.add(canopyPad);
+        }
+
+        var topCrown = new THREE.Mesh(new THREE.DodecahedronGeometry(2.3 * s, 1), leafMats[1]);
+        topCrown.scale.set(1.4, 0.68, 1.4);
+        topCrown.position.y = 5.4 * s;
+        topCrown.castShadow = true;
+        group.add(topCrown);
+
+        return group;
+      }
+
+      // 7.4 Curved Segmented Coconut Palm Tree with Arched Fronds
+      function createPalmTree(scale) {
+        var s = scale || 1;
+        var group = new THREE.Group();
+        var segments = 7;
+        var curX = 0, curY = 0;
+        for (var i = 0; i < segments; i++) {
+          var t = i / segments;
+          var rBot = (0.34 - t * 0.16) * s;
+          var rTop = (0.31 - t * 0.16) * s;
+          var segH = 1.05 * s;
+          var seg = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, segH, 8), trunkMat);
+          var tilt = 0.08 + t * 0.12;
+          seg.position.set(curX + Math.sin(tilt) * segH * 0.5, curY + Math.cos(tilt) * segH * 0.5, 0);
+          seg.rotation.z = -tilt;
+          seg.castShadow = true;
+          group.add(seg);
+          curX += Math.sin(tilt) * segH;
+          curY += Math.cos(tilt) * segH;
+        }
+
+        // Coconuts cluster at crown
+        for (var c = 0; c < 3; c++) {
+          var nut = new THREE.Mesh(new THREE.SphereGeometry(0.16 * s, 6, 6), trunkMat);
+          var cAng = (c * Math.PI * 2) / 3;
+          nut.position.set(curX + Math.cos(cAng) * 0.2 * s, curY - 0.1 * s, Math.sin(cAng) * 0.2 * s);
+          group.add(nut);
+        }
+
+        // 7 Arched Palm Frond Blades
+        var frondGeo = new THREE.BoxGeometry(2.4 * s, 0.06 * s, 0.48 * s);
+        for (var f = 0; f < 7; f++) {
+          var fAng = (f * Math.PI * 2) / 7;
+          var frondPivot = new THREE.Group();
+          frondPivot.position.set(curX, curY, 0);
+          frondPivot.rotation.y = fAng;
+
+          var frond = new THREE.Mesh(frondGeo, leafMats[f % leafMats.length]);
+          frond.position.set(1.15 * s, -0.15 * s, 0);
+          frond.rotation.z = -0.32;
+          frond.castShadow = true;
+          frondPivot.add(frond);
+          group.add(frondPivot);
+        }
+        return group;
+      }
+
+      // ============================================================================
+      // 8. WORLD ROAD GRID, ZEBRA CROSSINGS, FOOTPATHS & STREET INFRASTRUCTURE
+      // ============================================================================
+      var animatedFlags = [];
+      var fountainDrops = [];
+      var policeLightBars = [];
+      var landmarks = [
+        { name: 'Bhavya Hindu Mandir', icon: 'ॐ', color: '#FF6B1A', x: -75, z: -75 },
+        { name: 'City Hospital 24x7', icon: '+', color: '#EF4444', x: 75, z: -75 },
+        { name: 'Bharat State Bank', icon: '₹', color: '#3B82F6', x: -75, z: 75 },
+        { name: 'Vidya Mandir School', icon: 'S', color: '#F59E0B', x: 75, z: 75 },
+        { name: 'Nehru Public Park', icon: 'P', color: '#10B981', x: 0, z: -75 }
+      ];
+
+      var roadCoords = [-200, -100, 0, 100, 200];
+      var ROAD_WIDTH = 16;
+
+      function buildWorldGrid() {
+        // Base Ground Plane
+        var ground = new THREE.Mesh(
+          new THREE.PlaneGeometry(1400, 1400),
+          new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.92, metalness: 0.02 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        var dashMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+        var yellowLineMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+
+        // Build N-S and E-W Roads + Raised Tiled Footpaths
+        for (var i = 0; i < roadCoords.length; i++) {
+          var rc = roadCoords[i];
+
+          // North-South Road Strip
+          var roadNS = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_WIDTH, 520), sharedMats.asphalt);
+          roadNS.rotation.x = -Math.PI / 2;
+          roadNS.position.set(rc, 0.03, 0);
+          roadNS.receiveShadow = true;
+          scene.add(roadNS);
+
+          // East-West Road Strip
+          var roadEW = new THREE.Mesh(new THREE.PlaneGeometry(520, ROAD_WIDTH), sharedMats.asphalt);
+          roadEW.rotation.x = -Math.PI / 2;
+          roadEW.position.set(0, 0.035, rc);
+          roadEW.receiveShadow = true;
+          scene.add(roadEW);
+
+          // Raised Tiled Footpaths on both sides of roads
+          var fpLeftNS = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.18, 520), sharedMats.footpath);
+          fpLeftNS.position.set(rc - ROAD_WIDTH / 2 - 1.3, 0.09, 0);
+          fpLeftNS.receiveShadow = true;
+          scene.add(fpLeftNS);
+
+          var fpRightNS = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.18, 520), sharedMats.footpath);
+          fpRightNS.position.set(rc + ROAD_WIDTH / 2 + 1.3, 0.09, 0);
+          fpRightNS.receiveShadow = true;
+          scene.add(fpRightNS);
+
+          var fpTopEW = new THREE.Mesh(new THREE.BoxGeometry(520, 0.18, 2.6), sharedMats.footpath);
+          fpTopEW.position.set(0, 0.09, rc - ROAD_WIDTH / 2 - 1.3);
+          fpTopEW.receiveShadow = true;
+          scene.add(fpTopEW);
+
+          var fpBotEW = new THREE.Mesh(new THREE.BoxGeometry(520, 0.18, 2.6), sharedMats.footpath);
+          fpBotEW.position.set(0, 0.09, rc + ROAD_WIDTH / 2 + 1.3);
+          fpBotEW.receiveShadow = true;
+          scene.add(fpBotEW);
+
+          // Dashed White Lane Dividers
+          for (var d = -240; d <= 240; d += 12) {
+            if (Math.abs(d % 100) < 12) continue; // skip intersections
+            var dashNS = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 5.0), dashMat);
+            dashNS.rotation.x = -Math.PI / 2;
+            dashNS.position.set(rc, 0.05, d);
+            scene.add(dashNS);
+
+            var dashEW = new THREE.Mesh(new THREE.PlaneGeometry(5.0, 0.28), dashMat);
+            dashEW.rotation.x = -Math.PI / 2;
+            dashEW.position.set(d, 0.05, rc);
+            scene.add(dashEW);
+          }
+        }
+
+        // Intersections: Zebra Crossings & Traffic Signals
+        for (var ix = 0; ix < roadCoords.length; ix++) {
+          for (var iz = 0; iz < roadCoords.length; iz++) {
+            var cx = roadCoords[ix];
+            var cz = roadCoords[iz];
+
+            // Zebra Stripes on 4 approaches
+            for (var s = -5; s <= 5; s += 2) {
+              var z1 = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 2.8), dashMat);
+              z1.rotation.x = -Math.PI / 2;
+              z1.position.set(cx + s, 0.055, cz - 9.5);
+              scene.add(z1);
+
+              var z2 = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 2.8), dashMat);
+              z2.rotation.x = -Math.PI / 2;
+              z2.position.set(cx + s, 0.055, cz + 9.5);
+              scene.add(z2);
+            }
+
+            // Traffic Signal Pole at Intersection Corner
+            if (Math.abs(cx) <= 100 && Math.abs(cz) <= 100) {
+              var sigGroup = new THREE.Group();
+              sigGroup.position.set(cx + 9.5, 0, cz + 9.5);
+              var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 5.6, 8), sharedMats.darkMetal);
+              pole.position.y = 2.8;
+              sigGroup.add(pole);
+
+              var box = new THREE.Mesh(new THREE.BoxGeometry(0.48, 1.35, 0.48), sharedMats.darkMetal);
+              box.position.set(0, 5.1, 0);
+              sigGroup.add(box);
+
+              var redLamp = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff2222 }));
+              redLamp.position.set(0, 5.45, -0.24);
+              sigGroup.add(redLamp);
+
+              var ambLamp = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), new THREE.MeshBasicMaterial({ color: 0xfbbf24 }));
+              ambLamp.position.set(0, 5.1, -0.24);
+              sigGroup.add(ambLamp);
+
+              var grnLamp = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), new THREE.MeshBasicMaterial({ color: 0x22c55e }));
+              grnLamp.position.set(0, 4.75, -0.24);
+              sigGroup.add(grnLamp);
+
+              scene.add(sigGroup);
+            }
+          }
+        }
+
+        // Streetlamps along main avenues
+        var lampBulbMat = new THREE.MeshBasicMaterial({ color: 0xffe49e });
+        for (var lp = -180; lp <= 180; lp += 36) {
+          if (Math.abs(lp % 100) < 14) continue;
+          [-100, 0, 100].forEach(function (rx) {
+            var lamp = new THREE.Group();
+            lamp.position.set(rx - 9.2, 0, lp);
+            var lPole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.15, 6.8, 8), sharedMats.darkMetal);
+            lPole.position.y = 3.4;
+            lamp.add(lPole);
+            var arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.2, 6), sharedMats.darkMetal);
+            arm.position.set(0.9, 6.6, 0);
+            arm.rotation.z = -Math.PI / 2.4;
+            lamp.add(arm);
+            var head = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.14, 0.34), lampBulbMat);
+            head.position.set(1.85, 6.75, 0);
+            lamp.add(head);
+            scene.add(lamp);
+          });
+        }
+      }
+
+      // ============================================================================
+      // 9. THE 5 MAJOR INDIAN ARCHITECTURAL LANDMARKS + BAZAAR HOUSES
+      // ============================================================================
+
+      // 9.1 LANDMARK 1: BHAVYA HINDU MANDIR (Temple at x: -75, z: -75)
+      function buildHinduMandir(cx, cz) {
+        var mandir = new THREE.Group();
+        mandir.position.set(cx, 0, cz);
+
+        // Compound Boundary Wall with Saffron Trim
+        var wallMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.8 });
+        var wNorth = new THREE.Mesh(new THREE.BoxGeometry(44, 2.2, 0.8), wallMat);
+        wNorth.position.set(0, 1.1, -22);
+        mandir.add(wNorth);
+        var wWest = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.2, 44), wallMat);
+        wWest.position.set(-22, 1.1, 0);
+        mandir.add(wWest);
+        var wEast = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.2, 44), wallMat);
+        wEast.position.set(22, 1.1, 0);
+        mandir.add(wEast);
+
+        // Raised Carved Sandstone Jagati Platform
+        var jagati = new THREE.Mesh(new THREE.BoxGeometry(28, 2.4, 32), sharedMats.stone);
+        jagati.position.set(0, 1.2, -2);
+        jagati.castShadow = true;
+        jagati.receiveShadow = true;
+        mandir.add(jagati);
+
+        // Wide Ceremonial Steps in front (+Z side)
+        for (var st = 0; st < 6; st++) {
+          var step = new THREE.Mesh(
+            new THREE.BoxGeometry(10, 0.4, 1.2),
+            sharedMats.stone
+          );
+          step.position.set(0, 0.2 + st * 0.4, 16.8 - st * 0.6);
+          step.receiveShadow = true;
+          mandir.add(step);
+        }
+
+        // 8 Carved Mandapa Pillars + Hanging Brass Temple Bells
+        var pillarPositions = [
+          [-8, 6], [-4, 6], [4, 6], [8, 6],
+          [-8, 12], [-4, 12], [4, 12], [8, 12]
+        ];
+        for (var p = 0; p < pillarPositions.length; p++) {
+          var px = pillarPositions[p][0];
+          var pz = pillarPositions[p][1];
+          var pGroup = new THREE.Group();
+          pGroup.position.set(px, 2.4, pz);
+
+          var base = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.6, 1.3), sharedMats.stone);
+          base.position.y = 0.3;
+          pGroup.add(base);
+
+          var shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.52, 5.2, 10), sharedMats.stone);
+          shaft.position.y = 3.2;
+          shaft.castShadow = true;
+          pGroup.add(shaft);
+
+          var capital = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 1.4), sharedMats.stone);
+          capital.position.y = 6.0;
+          pGroup.add(capital);
+
+          mandir.add(pGroup);
+        }
+
+        // Hanging Golden Temple Bell in center of Mandapa entrance
+        var bellChain = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.6, 6), sharedMats.gold);
+        bellChain.position.set(0, 7.6, 11);
+        mandir.add(bellChain);
+        var bellCone = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.75, 14), sharedMats.gold);
+        bellCone.position.set(0, 6.5, 11);
+        mandir.add(bellCone);
+
+        // Mandapa Stepped Pyramid Roof
+        for (var mr = 0; mr < 4; mr++) {
+          var mSlab = new THREE.Mesh(
+            new THREE.BoxGeometry(19 - mr * 3.2, 0.9, 12 - mr * 2.0),
+            sharedMats.stone
+          );
+          mSlab.position.set(0, 8.8 + mr * 0.9, 8.5);
+          mSlab.castShadow = true;
+          mandir.add(mSlab);
+        }
+
+        // Garbhagriha Sanctum & Stepped Nagara Shikhar Tower (11 Tiers)
+        for (var tier = 0; tier < 11; tier++) {
+          var tRatio = 1 - tier / 12.5;
+          var tierW = 16 * tRatio;
+          var tierMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(tierW, 1.65, tierW),
+            sharedMats.stone
+          );
+          tierMesh.position.set(0, 3.2 + tier * 1.55, -6);
+          tierMesh.castShadow = true;
+          tierMesh.receiveShadow = true;
+          mandir.add(tierMesh);
+        }
+
+        // Golden Amalaka Disc & Sacred Kalash Finial at Peak (y ~ 20.5)
+        var amalaka = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.45, 10, 20), sharedMats.gold);
+        amalaka.rotation.x = Math.PI / 2;
+        amalaka.position.set(0, 20.4, -6);
+        mandir.add(amalaka);
+
+        var kalashSphere = new THREE.Mesh(new THREE.SphereGeometry(0.95, 16, 14), sharedMats.gold);
+        kalashSphere.position.set(0, 21.6, -6);
+        mandir.add(kalashSphere);
+
+        var kalashTip = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.4, 12), sharedMats.gold);
+        kalashTip.position.set(0, 22.9, -6);
+        mandir.add(kalashTip);
+
+        // Saffron Flag (Dhwaja) on Flagstaff
+        var flagPole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 4.5, 8), sharedMats.gold);
+        flagPole.position.set(0, 24.5, -6);
+        mandir.add(flagPole);
+
+        var flagGeo = new THREE.PlaneGeometry(3.4, 1.5, 12, 4);
+        var flagMat = new THREE.MeshStandardMaterial({
+          color: 0xff5500,
+          emissive: 0xff4400,
+          emissiveIntensity: 0.28,
+          side: THREE.DoubleSide,
+          roughness: 0.5
+        });
+        var saffronFlag = new THREE.Mesh(flagGeo, flagMat);
+        saffronFlag.position.set(1.7, 25.8, -6);
+        mandir.add(saffronFlag);
+        animatedFlags.push(saffronFlag);
+
+        // Illuminated Temple Entrance Arch Signboard
+        var mandirSign = new THREE.Mesh(
+          new THREE.BoxGeometry(11, 1.6, 0.4),
+          makeSignboardMaterial('ॐ SHRI RAM MANDIR ॐ', 'BHAVYA SANATAN DHAM', '#7c2d12', '#fef08a', '#fb923c')
+        );
+        mandirSign.position.set(0, 5.8, 21.8);
+        mandir.add(mandirSign);
+
+        scene.add(mandir);
+        addBoxCollider(cx, cz - 2, 14.5, 16.5, 'Bhavya Hindu Mandir');
+      }
+
+      // 9.2 LANDMARK 2: CITY HOSPITAL 24x7 (at x: 75, z: -75)
+      function buildCityHospital(cx, cz) {
+        var hosp = new THREE.Group();
+        hosp.position.set(cx, 0, cz);
+
+        var hospFacadeMat = makeBuildingFacadeMaterial('#f1f5f9', '#0284c7', 5, 6);
+        var mainWing = new THREE.Mesh(new THREE.BoxGeometry(28, 20, 18), hospFacadeMat);
+        mainWing.position.set(0, 10, -4);
+        mainWing.castShadow = true;
+        mainWing.receiveShadow = true;
+        hosp.add(mainWing);
+
+        // Glass Atrium Center Tower
+        var glassTower = new THREE.Mesh(new THREE.BoxGeometry(10, 21.5, 6), sharedMats.glass);
+        glassTower.position.set(0, 10.75, 4.5);
+        hosp.add(glassTower);
+
+        // Emergency Trauma Canopy Ramp
+        var canopyRoof = new THREE.Mesh(
+          new THREE.BoxGeometry(12, 0.5, 6.5),
+          new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.4 })
+        );
+        canopyRoof.position.set(0, 4.2, 10.2);
+        hosp.add(canopyRoof);
+
+        for (var cp = -1; cp <= 1; cp += 2) {
+          var cPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 4.2, 10), sharedMats.whiteMarble);
+          cPillar.position.set(cp * 5.2, 2.1, 12.8);
+          hosp.add(cPillar);
+        }
+
+        // Glowing 3D Red "+" Cross Emblem on Rooftop
+        var redGlowMat = new THREE.MeshStandardMaterial({
+          color: 0xef4444,
+          emissive: 0xef4444,
+          emissiveIntensity: 0.85,
+          roughness: 0.2
+        });
+        var crossV = new THREE.Mesh(new THREE.BoxGeometry(1.6, 5.2, 1.2), redGlowMat);
+        crossV.position.set(0, 23.2, 4.5);
+        hosp.add(crossV);
+        var crossH = new THREE.Mesh(new THREE.BoxGeometry(5.2, 1.6, 1.2), redGlowMat);
+        crossH.position.set(0, 23.2, 4.5);
+        hosp.add(crossH);
+
+        // Hospital Signboard
+        var hospSign = new THREE.Mesh(
+          new THREE.BoxGeometry(14, 1.8, 0.4),
+          makeSignboardMaterial('CITY HOSPITAL 24x7', 'EMERGENCY & TRAUMA CARE', '#0f172a', '#ffffff', '#ef4444')
+        );
+        hospSign.position.set(0, 5.4, 13.5);
+        hosp.add(hospSign);
+
+        scene.add(hosp);
+        addBoxCollider(cx, cz - 2, 15, 11, 'City Hospital');
+      }
+
+      // 9.3 LANDMARK 3: BHARAT STATE BANK (at x: -75, z: 75)
+      function buildStateBank(cx, cz) {
+        var bank = new THREE.Group();
+        bank.position.set(cx, 0, cz);
+
+        var bankMat = makeBuildingFacadeMaterial('#e2e8f0', '#1e3a8a', 4, 5);
+        var mainBlock = new THREE.Mesh(new THREE.BoxGeometry(26, 16, 18), bankMat);
+        mainBlock.position.set(0, 8, 2);
+        mainBlock.castShadow = true;
+        mainBlock.receiveShadow = true;
+        bank.add(mainBlock);
+
+        // Marble Steps & Grand Classical Pillared Portico facing North (-Z)
+        var porticoBase = new THREE.Mesh(new THREE.BoxGeometry(18, 1.2, 5), sharedMats.whiteMarble);
+        porticoBase.position.set(0, 0.6, -9);
+        bank.add(porticoBase);
+
+        for (var k = -3; k <= 3; k += 2) {
+          var col = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.52, 11.5, 14), sharedMats.whiteMarble);
+          col.position.set(k * 2.4, 6.9, -10.2);
+          col.castShadow = true;
+          bank.add(col);
+        }
+
+        var pediment = new THREE.Mesh(new THREE.BoxGeometry(18.5, 2.2, 4.5), sharedMats.whiteMarble);
+        pediment.position.set(0, 13.5, -9.2);
+        bank.add(pediment);
+
+        // Side 24x7 ATM Booth
+        var atmBox = new THREE.Mesh(
+          new THREE.BoxGeometry(4.5, 3.8, 4.5),
+          new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.4 })
+        );
+        atmBox.position.set(11.5, 1.9, -9.2);
+        bank.add(atmBox);
+
+        var atmSign = new THREE.Mesh(
+          new THREE.BoxGeometry(4.2, 0.8, 0.3),
+          makeSignboardMaterial('24 HRS ATM', 'RUPAY · UPI · CASH', '#1e3a8a', '#38bdf8', '#fbbf24')
+        );
+        atmSign.position.set(11.5, 4.2, -11.5);
+        bank.add(atmSign);
+
+        // Main Bank Signboard
+        var bankSign = new THREE.Mesh(
+          new THREE.BoxGeometry(16, 2.0, 0.45),
+          makeSignboardMaterial('BHARAT STATE BANK', 'RESERVE TREASURY & GOLD VAULT', '#172554', '#ffffff', '#38bdf8')
+        );
+        bankSign.position.set(0, 13.6, -11.6);
+        bank.add(bankSign);
+
+        scene.add(bank);
+        addBoxCollider(cx, cz + 1, 14, 11.5, 'Bharat State Bank');
+      }
+
+      // 9.4 LANDMARK 4: VIDYA SCHOOL (U-Shaped Building + Assembly Ground + Indian Tricolor Flag at x: 75, z: 75)
+      function buildVidyaSchool(cx, cz) {
+        var school = new THREE.Group();
+        school.position.set(cx, 0, cz);
+
+        var schoolMat = makeBuildingFacadeMaterial('#fef08a', '#b45309', 3, 6);
+
+        // Back Wing
+        var backWing = new THREE.Mesh(new THREE.BoxGeometry(32, 11, 8), schoolMat);
+        backWing.position.set(0, 5.5, 10);
+        backWing.castShadow = true;
+        backWing.receiveShadow = true;
+        school.add(backWing);
+
+        // Left & Right Wings forming U-shape courtyard
+        var leftWing = new THREE.Mesh(new THREE.BoxGeometry(7.5, 11, 18), schoolMat);
+        leftWing.position.set(-12.25, 5.5, 1);
+        leftWing.castShadow = true;
+        school.add(leftWing);
+
+        var rightWing = new THREE.Mesh(new THREE.BoxGeometry(7.5, 11, 18), schoolMat);
+        rightWing.position.set(12.25, 5.5, 1);
+        rightWing.castShadow = true;
+        school.add(rightWing);
+
+        // Central Assembly Flagpole & Indian Tricolor Flag (Tiranga)
+        var poleBase = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.5, 0.8, 12), sharedMats.whiteMarble);
+        poleBase.position.set(0, 0.4, -2);
+        school.add(poleBase);
+
+        var flagPole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 13.5, 10), sharedMats.whiteMarble);
+        flagPole.position.set(0, 6.75, -2);
+        school.add(flagPole);
+
+        var tirangaTex = makeCanvasTex(256, 160, function (ctx, w, h) {
+          ctx.fillStyle = '#FF671F';
+          ctx.fillRect(0, 0, w, h / 3);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, h / 3, w, h / 3);
+          ctx.fillStyle = '#046A38';
+          ctx.fillRect(0, (h * 2) / 3, w, h / 3);
+          // Ashoka Chakra
+          ctx.strokeStyle = '#06038D';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(w / 2, h / 2, 18, 0, Math.PI * 2);
+          ctx.stroke();
+        }, true, 1, 1);
+
+        var tirangaGeo = new THREE.PlaneGeometry(3.2, 2.0, 12, 4);
+        var tirangaMesh = new THREE.Mesh(
+          tirangaGeo,
+          new THREE.MeshStandardMaterial({ map: tirangaTex, side: THREE.DoubleSide, roughness: 0.5 })
+        );
+        tirangaMesh.position.set(1.6, 12.4, -2);
+        school.add(tirangaMesh);
+        animatedFlags.push(tirangaMesh);
+
+        // School Gate Arch & Signboard
+        var gateLeft = new THREE.Mesh(new THREE.BoxGeometry(1.2, 5.2, 1.2), sharedMats.stone);
+        gateLeft.position.set(-5.5, 2.6, -12);
+        school.add(gateLeft);
+        var gateRight = new THREE.Mesh(new THREE.BoxGeometry(1.2, 5.2, 1.2), sharedMats.stone);
+        gateRight.position.set(5.5, 2.6, -12);
+        school.add(gateRight);
+
+        var schoolSign = new THREE.Mesh(
+          new THREE.BoxGeometry(13, 1.6, 0.4),
+          makeSignboardMaterial('VIDYA MANDIR HIGH SCHOOL', 'KNOWLEDGE · DISCIPLINE · UNITY', '#78350f', '#fef08a', '#f59e0b')
+        );
+        schoolSign.position.set(0, 5.6, -12);
+        school.add(schoolSign);
+
+        scene.add(school);
+        addBoxCollider(cx, cz + 10, 16, 4.5, 'Vidya School');
+      }
+
+      // 9.5 LANDMARK 5: NEHRU PUBLIC PARK (Fountain, Banyan & Palm Trees, Swings, Benches at x: 0, z: -75)
+      function buildPublicPark(cx, cz) {
+        var park = new THREE.Group();
+        park.position.set(cx, 0, cz);
+
+        // Lush Green Lawn Pad
+        var lawn = new THREE.Mesh(
+          new THREE.BoxGeometry(46, 0.22, 46),
+          new THREE.MeshStandardMaterial({ color: 0x2e6f40, roughness: 0.85 })
+        );
+        lawn.position.y = 0.11;
+        lawn.receiveShadow = true;
+        park.add(lawn);
+
+        // Circular Walking Track
+        var trackRing = new THREE.Mesh(
+          new THREE.RingGeometry(14, 17.5, 32),
+          new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.85, side: THREE.DoubleSide })
+        );
+        trackRing.rotation.x = -Math.PI / 2;
+        trackRing.position.y = 0.24;
+        park.add(trackRing);
+
+        // Central Multi-Tier Animated Water Fountain
+        var basin = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 5.2, 0.9, 20), sharedMats.whiteMarble);
+        basin.position.y = 0.45;
+        park.add(basin);
+
+        var waterPool = new THREE.Mesh(
+          new THREE.CylinderGeometry(4.4, 4.4, 0.75, 20),
+          new THREE.MeshStandardMaterial({ color: 0x0ea5e9, roughness: 0.1, metalness: 0.3 })
+        );
+        waterPool.position.y = 0.52;
+        park.add(waterPool);
+
+        var tier1 = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 0.5, 16), sharedMats.whiteMarble);
+        tier1.position.y = 1.9;
+        park.add(tier1);
+
+        var pillarF = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 3.2, 12), sharedMats.whiteMarble);
+        pillarF.position.y = 1.6;
+        park.add(pillarF);
+
+        // Animated Fountain Water Droplets
+        var dropGeo = new THREE.SphereGeometry(0.14, 6, 6);
+        var dropMat = new THREE.MeshBasicMaterial({ color: 0xbae6fd });
+        for (var fd = 0; fd < 24; fd++) {
+          var drop = new THREE.Mesh(dropGeo, dropMat);
+          var ang = (fd / 24) * Math.PI * 2;
+          drop.userData = { angle: ang, phase: Math.random() * Math.PI * 2, radius: 1.2 + Math.random() * 2.2 };
+          park.add(drop);
+          fountainDrops.push(drop);
+        }
+
+        // Banyan Trees in 4 corners & Curved Palms
+        var banyanOffsets = [[-16, -16], [16, -16], [-16, 16], [16, 16]];
+        for (var bo = 0; bo < banyanOffsets.length; bo++) {
+          var bt = createBanyanTree(0.95);
+          bt.position.set(banyanOffsets[bo][0], 0.2, banyanOffsets[bo][1]);
+          park.add(bt);
+        }
+
+        var palmOffsets = [[-18, 0], [18, 0], [0, -18], [0, 18]];
+        for (var po = 0; po < palmOffsets.length; po++) {
+          var pt = createPalmTree(0.95);
+          pt.position.set(palmOffsets[po][0], 0.2, palmOffsets[po][1]);
+          pt.rotation.y = po * 1.4;
+          park.add(pt);
+        }
+
+        // Children's Swing Set & Park Benches
+        var swingFrame = new THREE.Group();
+        swingFrame.position.set(-9, 0.2, 8);
+        var sTop = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4.6, 8), sharedMats.gold);
+        sTop.rotation.z = Math.PI / 2;
+        sTop.position.y = 3.2;
+        swingFrame.add(sTop);
+        var sLegL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.3, 8), sharedMats.gold);
+        sLegL.position.set(-2.2, 1.6, 0);
+        swingFrame.add(sLegL);
+        var sLegR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.3, 8), sharedMats.gold);
+        sLegR.position.set(2.2, 1.6, 0);
+        swingFrame.add(sLegR);
+        park.add(swingFrame);
+
+        scene.add(park);
+        addBoxCollider(cx, cz, 5.2, 5.2, 'Park Fountain');
+      }
+
+      // 9.6 CHHOTE-MOTE INDIAN GHAR & BAZAAR SHOPS (Multi-story houses with Chajjas, Balconies, Water Tanks, Signboards)
+      var shopBrands = [
+        { title: 'SHARMA DHABA', sub: 'PURE VEG · DAL TADKA · ROTI', bg: '#7c2d12', fg: '#fef08a', br: '#f97316' },
+        { title: 'RAJU CHAI TAPRI', sub: 'KULLAD MASALA CHAI & BUN MASKA', bg: '#14532d', fg: '#ffffff', br: '#4ade80' },
+        { title: 'A1 MOBILE POINT', sub: '5G SIM · RECHARGE · REPAIR', bg: '#1e3a8a', fg: '#38bdf8', br: '#facc15' },
+        { title: 'GUPTA KIRANA STORE', sub: 'ATTA · RICE · SPICES · COLD DRINK', bg: '#701a75', fg: '#fdf4ff', br: '#f472b6' },
+        { title: 'ROYAL SWEETS & BAKERY', sub: 'HOT JALEBI · SAMOSA · KAJU KATLI', bg: '#881337', fg: '#fde047', br: '#fb7185' },
+        { title: 'BHARAT AUTO GARAGE', sub: 'DENTING · PAINTING · TYRE PUNCTURE', bg: '#0f172a', fg: '#38bdf8', br: '#f97316' }
+      ];
+
+      var houseColors = ['#f59e0b', '#fb7185', '#38bdf8', '#a3e635', '#c084fc', '#fb923c', '#fcd34d'];
+
+      function createIndianHouseOrShop(x, z, rotY, floors, colorHex, brandObj) {
+        var group = new THREE.Group();
+        group.position.set(x, 0, z);
+        group.rotation.y = rotY;
+
+        var w = 11 + (Math.abs(x + z) % 4);
+        var d = 10 + (Math.abs(x * 2) % 3);
+        var floorH = 3.6;
+        var totalH = floors * floorH;
+
+        var facadeMat = makeBuildingFacadeMaterial(colorHex, '#334155', floors, 3);
+        var body = new THREE.Mesh(new THREE.BoxGeometry(w, totalH, d), facadeMat);
+        body.position.y = totalH / 2;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        group.add(body);
+
+        // Rooftop Parapet Wall
+        var parapet = new THREE.Mesh(
+          new THREE.BoxGeometry(w + 0.4, 0.9, d + 0.4),
+          new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.8 })
+        );
+        parapet.position.y = totalH + 0.45;
+        group.add(parapet);
+
+        // Window Chajjas (Concrete Sunshades) & Balcony Railings on each upper floor
+        var chajjaMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.7 });
+        for (var f = 1; f < floors; f++) {
+          var chajja = new THREE.Mesh(new THREE.BoxGeometry(w * 0.85, 0.22, 1.35), chajjaMat);
+          chajja.position.set(0, f * floorH + 0.2, d / 2 + 0.65);
+          chajja.castShadow = true;
+          group.add(chajja);
+
+          // Balcony Railing
+          var rail = new THREE.Mesh(new THREE.BoxGeometry(w * 0.5, 0.85, 0.12), sharedMats.darkMetal);
+          rail.position.set(0, f * floorH + 0.65, d / 2 + 1.2);
+          group.add(rail);
+        }
+
+        // External Side Staircase
+        for (var st = 0; st < 8; st++) {
+          var stepMesh = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.35, 0.65), chajjaMat);
+          stepMesh.position.set(w / 2 + 0.55, 0.2 + st * 0.42, -d / 4 + st * 0.55);
+          group.add(stepMesh);
+        }
+
+        // Rooftop Black Water Tank & Dish Antenna
+        var tank = createRooftopWaterTank();
+        tank.position.set(-w * 0.25, totalH + 0.9, -d * 0.2);
+        group.add(tank);
+
+        var dish = createDishAntenna();
+        dish.position.set(w * 0.28, totalH + 0.9, d * 0.25);
+        group.add(dish);
+
+        // Ground-Floor Bazaar Shop Awning & Glowing Signboard
+        if (brandObj) {
+          var sign = new THREE.Mesh(
+            new THREE.BoxGeometry(w * 0.88, 1.35, 0.35),
+            makeSignboardMaterial(brandObj.title, brandObj.sub, brandObj.bg, brandObj.fg, brandObj.br)
+          );
+          sign.position.set(0, 3.35, d / 2 + 0.25);
+          group.add(sign);
+
+          var awning = new THREE.Mesh(
+            new THREE.BoxGeometry(w * 0.9, 0.18, 1.8),
+            new THREE.MeshStandardMaterial({ color: brandObj.br, roughness: 0.6 })
+          );
+          awning.position.set(0, 2.55, d / 2 + 0.85);
+          awning.rotation.x = 0.25;
+          group.add(awning);
+        }
+
+        scene.add(group);
+        addBoxCollider(x, z, w / 2 + 0.6, d / 2 + 0.6, brandObj ? brandObj.title : 'Indian Residence');
+      }
+
+      function populateIndianBazaarAndHouses() {
+        var housePlots = [
+          // Central Bazaar Blocks
+          { x: -35, z: -25, rot: 0, floors: 2, brand: 0 },
+          { x: -65, z: -25, rot: 0, floors: 3, brand: 1 },
+          { x: 35, z: -25, rot: 0, floors: 2, brand: 2 },
+          { x: 65, z: -25, rot: 0, floors: 3, brand: 3 },
+          { x: -35, z: 25, rot: Math.PI, floors: 3, brand: 4 },
+          { x: -65, z: 25, rot: Math.PI, floors: 2, brand: 5 },
+          { x: 35, z: 25, rot: Math.PI, floors: 2, brand: 0 },
+          { x: 65, z: 25, rot: Math.PI, floors: 3, brand: 1 },
+          // Outer Residential Blocks
+          { x: -135, z: -35, rot: Math.PI / 2, floors: 2, brand: 2 },
+          { x: -135, z: -65, rot: Math.PI / 2, floors: 3, brand: null },
+          { x: -135, z: 35, rot: Math.PI / 2, floors: 2, brand: 3 },
+          { x: -135, z: 65, rot: Math.PI / 2, floors: 3, brand: null },
+          { x: 135, z: -35, rot: -Math.PI / 2, floors: 3, brand: 4 },
+          { x: 135, z: -65, rot: -Math.PI / 2, floors: 2, brand: null },
+          { x: 135, z: 35, rot: -Math.PI / 2, floors: 2, brand: 5 },
+          { x: 135, z: 65, rot: -Math.PI / 2, floors: 3, brand: null },
+          { x: -35, z: 135, rot: Math.PI, floors: 2, brand: 1 },
+          { x: 35, z: 135, rot: Math.PI, floors: 3, brand: 2 },
+          { x: -35, z: -135, rot: 0, floors: 3, brand: 0 },
+          { x: 35, z: -135, rot: 0, floors: 2, brand: 4 }
+        ];
+
+        for (var i = 0; i < housePlots.length; i++) {
+          var hp = housePlots[i];
+          var col = houseColors[i % houseColors.length];
+          var br = hp.brand !== null ? shopBrands[hp.brand % shopBrands.length] : null;
+          createIndianHouseOrShop(hp.x, hp.z, hp.rot, hp.floors, col, br);
+
+          // Add roadside Coconut Palm or Banyan Tree beside house
+          var tree = i % 3 === 0 ? createBanyanTree(0.75) : createPalmTree(0.85);
+          tree.position.set(hp.x + 9, 0, hp.z + 4);
+          scene.add(tree);
+        }
+      }
+
+      // ============================================================================
+      // 10. COMPOSITE 3D VEHICLES (DRACO FERRARI, INDIAN AUTO-RICKSHAW, POLICE SUV)
+      // ============================================================================
+      var drivableVehicles = [];
+
+      function createWheelMesh(radius, width) {
+        var wGroup = new THREE.Group();
+        var tire = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, width, 16), sharedMats.rubberTire);
+        tire.rotation.z = Math.PI / 2;
+        wGroup.add(tire);
+        var rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.62, radius * 0.62, width + 0.02, 10), sharedMats.chrome);
+        rim.rotation.z = Math.PI / 2;
+        wGroup.add(rim);
+        return wGroup;
+      }
+
+      // 10.1 Real 3D Ferrari Sports Car (High-Detail Procedural + Draco ferrari.glb Upgrade)
+      function spawnFerrariVehicle(x, z, rotY) {
+        var carGroup = new THREE.Group();
+        carGroup.position.set(x, 0, z);
+        carGroup.rotation.y = rotY || 0;
+
+        var visualRoot = new THREE.Group();
+        carGroup.add(visualRoot);
+
+        var ferrariRedMat = new THREE.MeshPhysicalMaterial({
+          color: 0xd90429,
+          roughness: 0.12,
+          metalness: 0.65,
+          clearcoat: 1.0,
+          clearcoatRoughness: 0.06
+        });
+
+        // Sleek Multi-Part Supercar Fallback Shell (immediately visible & replaced when ferrari.glb loads)
+        var lowerChassis = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.52, 4.55), ferrariRedMat);
+        lowerChassis.position.y = 0.52;
+        lowerChassis.castShadow = true;
+        visualRoot.add(lowerChassis);
+
+        var frontHood = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.35, 1.45), ferrariRedMat);
+        frontHood.position.set(0, 0.68, 1.45);
+        frontHood.rotation.x = 0.14;
+        visualRoot.add(frontHood);
+
+        var cockpitGlass = new THREE.Mesh(new THREE.BoxGeometry(1.68, 0.52, 1.85), sharedMats.glass);
+        cockpitGlass.position.set(0, 1.02, -0.15);
+        visualRoot.add(cockpitGlass);
+
+        var rearSpoiler = new THREE.Mesh(new THREE.BoxGeometry(1.92, 0.08, 0.38), sharedMats.darkMetal);
+        rearSpoiler.position.set(0, 1.08, -2.05);
+        visualRoot.add(rearSpoiler);
+
+        var wheels = [];
+        var wCoords = [[-0.98, 0.36, 1.38], [0.98, 0.36, 1.38], [-0.98, 0.38, -1.38], [0.98, 0.38, -1.38]];
+        for (var i = 0; i < wCoords.length; i++) {
+          var wm = createWheelMesh(0.36, 0.28);
+          wm.position.set(wCoords[i][0], wCoords[i][1], wCoords[i][2]);
+          visualRoot.add(wm);
+          wheels.push(wm);
+        }
+
+        var vObj = {
+          type: 'Ferrari F8 Tributo',
+          mesh: carGroup,
+          wheels: wheels,
+          speed: 0,
+          maxSpeed: 42,
+          accel: 24,
+          steering: 0,
+          isPolice: false
+        };
+
+        // Load Official Three.js Draco ferrari.glb
+        try {
+          var dracoLoader = new THREE.DRACOLoader();
+          dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+          var gltfLoader = new THREE.GLTFLoader();
+          gltfLoader.setDRACOLoader(dracoLoader);
+          gltfLoader.load(
+            'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/ferrari.glb',
+            function (gltf) {
+              var model = gltf.scene;
+              model.rotation.y = Math.PI; // align forward +Z
+              var glbWheels = [];
+              model.traverse(function (child) {
+                if (child.isMesh) {
+                  child.castShadow = true;
+                  child.receiveShadow = true;
+                }
+                if (child.name && /wheel/i.test(child.name)) {
+                  glbWheels.push(child);
+                }
+              });
+              carGroup.remove(visualRoot);
+              carGroup.add(model);
+              if (glbWheels.length > 0) vObj.wheels = glbWheels;
+            },
+            undefined,
+            function () {}
+          );
+        } catch (e) {}
+
+        scene.add(carGroup);
+        drivableVehicles.push(vObj);
+        return vObj;
+      }
+
+      // 10.2 Detailed Indian Yellow-Green Auto-Rickshaw (3 Wheels, Curved Canopy, Handlebars, Windshield)
+      var autoYellowMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3, metalness: 0.25 });
+      var autoGreenMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.35, metalness: 0.2 });
+      var canopyBlackMat = new THREE.MeshStandardMaterial({ color: 0x1c1917, roughness: 0.85 });
+
+      function spawnAutoRickshaw(x, z, rotY) {
+        var auto = new THREE.Group();
+        auto.position.set(x, 0, z);
+        auto.rotation.y = rotY || 0;
+
+        // Green Lower Chassis Tub
+        var lowerTub = new THREE.Mesh(new THREE.BoxGeometry(1.38, 0.55, 2.35), autoGreenMat);
+        lowerTub.position.set(0, 0.48, -0.1);
+        lowerTub.castShadow = true;
+        auto.add(lowerTub);
+
+        // Iconic Yellow Cowl & Rear Body
+        var midCowl = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.42, 2.25), autoYellowMat);
+        midCowl.position.set(0, 0.92, -0.12);
+        midCowl.castShadow = true;
+        auto.add(midCowl);
+
+        // Front Sloped Nose & Windshield Frame
+        var frontNose = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.52, 0.95, 10), autoYellowMat);
+        frontNose.position.set(0, 0.72, 1.02);
+        auto.add(frontNose);
+
+        var windshield = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.68, 0.08), sharedMats.glass);
+        windshield.position.set(0, 1.44, 0.88);
+        windshield.rotation.x = -0.18;
+        auto.add(windshield);
+
+        // Single Central Headlight
+        var headlight = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.12, 12), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+        headlight.rotation.x = Math.PI / 2;
+        headlight.position.set(0, 0.78, 1.48);
+        auto.add(headlight);
+
+        // Curved Black Roof Canopy + 4 Support Struts
+        var roofCanopy = new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.18, 2.35), canopyBlackMat);
+        roofCanopy.position.set(0, 1.88, -0.1);
+        roofCanopy.castShadow = true;
+        auto.add(roofCanopy);
+
+        var strutCoords = [[-0.64, 0.75], [0.64, 0.75], [-0.64, -1.05], [0.64, -1.05]];
+        for (var sc = 0; sc < strutCoords.length; sc++) {
+          var strut = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.85, 6), sharedMats.darkMetal);
+          strut.position.set(strutCoords[sc][0], 1.46, strutCoords[sc][1]);
+          auto.add(strut);
+        }
+
+        // Passenger Seat & Driver Handlebar
+        var seat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.65), canopyBlackMat);
+        seat.position.set(0, 0.85, -0.65);
+        auto.add(seat);
+
+        var handlebar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.68, 6), sharedMats.chrome);
+        handlebar.rotation.z = Math.PI / 2;
+        handlebar.position.set(0, 1.15, 0.68);
+        auto.add(handlebar);
+
+        // 3 Wheels (1 Front + 2 Rear)
+        var wFront = createWheelMesh(0.26, 0.18);
+        wFront.position.set(0, 0.26, 1.25);
+        auto.add(wFront);
+
+        var wRearL = createWheelMesh(0.28, 0.2);
+        wRearL.position.set(-0.72, 0.28, -0.85);
+        auto.add(wRearL);
+
+        var wRearR = createWheelMesh(0.28, 0.2);
+        wRearR.position.set(0.72, 0.28, -0.85);
+        auto.add(wRearR);
+
+        scene.add(auto);
+        var vObj = {
+          type: 'Bajaj Auto-Rickshaw',
+          mesh: auto,
+          wheels: [wFront, wRearL, wRearR],
+          speed: 0,
+          maxSpeed: 23,
+          accel: 14,
+          steering: 0,
+          isPolice: false
+        };
+        drivableVehicles.push(vObj);
+        return vObj;
+      }
+
+      // 10.3 Indian Police SUV (PCR 112 Bolero/Scorpio with Flashing Red/Blue Roof Siren) & Ambulance
+      function spawnSuvOrAmbulance(x, z, rotY, isAmbulance) {
+        var suv = new THREE.Group();
+        suv.position.set(x, 0, z);
+        suv.rotation.y = rotY || 0;
+
+        var bodyMat = new THREE.MeshPhysicalMaterial({
+          color: 0xf8fafc,
+          roughness: 0.22,
+          metalness: 0.2,
+          clearcoat: 0.8
+        });
+
+        var stripeMat = new THREE.MeshStandardMaterial({
+          color: isAmbulance ? 0xef4444 : 0x1d4ed8,
+          roughness: 0.35
+        });
+
+        var lowerBody = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.88, 4.65), bodyMat);
+        lowerBody.position.y = 0.78;
+        lowerBody.castShadow = true;
+        suv.add(lowerBody);
+
+        var sideStripe = new THREE.Mesh(new THREE.BoxGeometry(2.14, 0.26, 4.5), stripeMat);
+        sideStripe.position.y = 0.82;
+        suv.add(sideStripe);
+
+        var cabin = new THREE.Mesh(new THREE.BoxGeometry(1.92, 0.82, 2.95), bodyMat);
+        cabin.position.set(0, 1.58, -0.35);
+        cabin.castShadow = true;
+        suv.add(cabin);
+
+        var cabinWindows = new THREE.Mesh(new THREE.BoxGeometry(1.96, 0.56, 2.65), sharedMats.glass);
+        cabinWindows.position.set(0, 1.62, -0.32);
+        suv.add(cabinWindows);
+
+        // Front Steel Bullbar & Headlights
+        var bullbar = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.55, 0.18), sharedMats.darkMetal);
+        bullbar.position.set(0, 0.72, 2.4);
+        suv.add(bullbar);
+
+        // Flashing Red & Blue Siren Bar on Roof
+        var sirenBase = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.12, 0.32), sharedMats.chrome);
+        sirenBase.position.set(0, 2.05, 0.25);
+        suv.add(sirenBase);
+
+        var redSiren = new THREE.Mesh(
+          new THREE.BoxGeometry(0.52, 0.18, 0.28),
+          new THREE.MeshBasicMaterial({ color: 0xff1111 })
+        );
+        redSiren.position.set(-0.32, 2.16, 0.25);
+        suv.add(redSiren);
+
+        var blueSiren = new THREE.Mesh(
+          new THREE.BoxGeometry(0.52, 0.18, 0.28),
+          new THREE.MeshBasicMaterial({ color: 0x1166ff })
+        );
+        blueSiren.position.set(0.32, 2.16, 0.25);
+        suv.add(blueSiren);
+        policeLightBars.push({ red: redSiren, blue: blueSiren });
+
+        var wheels = [];
+        var wPos = [[-1.02, 0.42, 1.45], [1.02, 0.42, 1.45], [-1.02, 0.42, -1.45], [1.02, 0.42, -1.45]];
+        for (var i = 0; i < wPos.length; i++) {
+          var wm = createWheelMesh(0.42, 0.28);
+          wm.position.set(wPos[i][0], wPos[i][1], wPos[i][2]);
+          suv.add(wm);
+          wheels.push(wm);
+        }
+
+        scene.add(suv);
+        var vObj = {
+          type: isAmbulance ? '108 Trauma Ambulance' : 'PCR 112 Police SUV',
+          mesh: suv,
+          wheels: wheels,
+          speed: 0,
+          maxSpeed: 33,
+          accel: 19,
+          steering: 0,
+          isPolice: true
+        };
+        drivableVehicles.push(vObj);
+        return vObj;
+      }
+
+      // ============================================================================
+      // 11. 3D ASSAULT RIFLE, MUZZLE FLASH, BULLET TRACERS & HIT SPARKS
+      // ============================================================================
+      function createAssaultRifleMesh() {
+        var gun = new THREE.Group();
+        var rec = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.14, 0.48), sharedMats.darkMetal);
+        gun.add(rec);
+        var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.42, 8), sharedMats.chrome);
+        barrel.rotation.x = Math.PI / 2;
+        barrel.position.set(0, 0.03, 0.4);
+        gun.add(barrel);
+        var mag = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.24, 0.1), sharedMats.darkMetal);
+        mag.position.set(0, -0.14, 0.08);
+        mag.rotation.x = 0.25;
+        gun.add(mag);
+        var scope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.18, 8), sharedMats.darkMetal);
+        scope.rotation.x = Math.PI / 2;
+        scope.position.set(0, 0.11, 0.02);
+        gun.add(scope);
+        return gun;
+      }
+
+      var muzzleLight = new THREE.PointLight(0xffaa33, 0, 12);
+      scene.add(muzzleLight);
+
+      var activeTracers = [];
+      var hitSparks = [];
+
+      function spawnBulletTracerAndSparks(startPos, endPos, hitNpc) {
+        var pts = [startPos.clone(), endPos.clone()];
+        var lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+        var lineMat = new THREE.LineBasicMaterial({ color: 0xffe066 });
+        var line = new THREE.Line(lineGeo, lineMat);
+        scene.add(line);
+        activeTracers.push({ mesh: line, ttl: 0.08 });
+
+        // Spawn Spark Burst at impact point
+        var sparkColor = hitNpc ? 0xef4444 : 0xfbbf24;
+        var sMat = new THREE.MeshBasicMaterial({ color: sparkColor });
+        var sGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+        for (var i = 0; i < 8; i++) {
+          var sp = new THREE.Mesh(sGeo, sMat);
+          sp.position.copy(endPos);
+          var vel = new THREE.Vector3(
+            (Math.random() - 0.5) * 8,
+            Math.random() * 6 + 2,
+            (Math.random() - 0.5) * 8
+          );
+          scene.add(sp);
+          hitSparks.push({ mesh: sp, vel: vel, ttl: 0.32 });
+        }
+      }
+
+      // ============================================================================
+      // 12. LUCIA-STYLE 3D PLAYER CHARACTER (.GLB LOADER) & INFINITE NPC SPAWNER
+      // ============================================================================
+      var player = {
+        group: new THREE.Group(),
+        mixer: null,
+        actions: { idle: null, walk: null, run: null },
+        activeAction: null,
+        gunMesh: createAssaultRifleMesh(),
+        vy: 0,
+        onGround: true,
+        speed: 0,
+        heading: 0,
+        inVehicle: null,
+        hp: 100,
+        armor: 85,
+        cash: 425000,
+        wanted: 0,
+        ammoMag: 30,
+        ammoReserve: 180,
+        fireCooldown: 0
+      };
+      player.group.position.set(0, 0, 12);
+      scene.add(player.group);
+
+      // Build articulated procedural Lucia fallback character while .glb downloads
+      function buildArticulatedCharacterFallback(shirtColor, pantsColor) {
+        var charGroup = new THREE.Group();
+        var skinMat = new THREE.MeshStandardMaterial({ color: 0xd99b78, roughness: 0.6 });
+        var topMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.5 });
+        var botMat = new THREE.MeshStandardMaterial({ color: pantsColor, roughness: 0.7 });
+        var hairMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.8 });
+
+        var torso = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.62, 0.26), topMat);
+        torso.position.y = 1.12;
+        torso.castShadow = true;
+        charGroup.add(torso);
+
+        var head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 12), skinMat);
+        head.position.y = 1.62;
+        head.castShadow = true;
+        charGroup.add(head);
+
+        var hair = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), hairMat);
+        hair.position.set(0, 1.66, -0.03);
+        charGroup.add(hair);
+
+        var legL = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.78, 8), botMat);
+        legL.position.set(-0.12, 0.4, 0);
+        charGroup.add(legL);
+
+        var legR = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.78, 8), botMat);
+        legR.position.set(0.12, 0.4, 0);
+        charGroup.add(legR);
+
+        var armL = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.62, 8), skinMat);
+        armL.position.set(-0.32, 1.1, 0);
+        charGroup.add(armL);
+
+        var armR = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.62, 8), skinMat);
+        armR.position.set(0.32, 1.1, 0.12);
+        armR.rotation.x = -Math.PI / 3;
+        charGroup.add(armR);
+
+        charGroup.userData = { legL: legL, legR: legR, armL: armL, armR: armR };
+        return charGroup;
+      }
+
+      var fallbackPlayerVisual = buildArticulatedCharacterFallback(0xe11d48, 0x1e293b);
+      player.gunMesh.position.set(0.32, 1.12, 0.38);
+      fallbackPlayerVisual.add(player.gunMesh);
+      player.group.add(fallbackPlayerVisual);
+
+      // Infinite Radius NPC Spawner Pool (20 Rigged 3D NPCs) + 10 Traffic Vehicles
+      var npcs = [];
+      var trafficVehicles = [];
+      var npcPalette = [0xf97316, 0x06b6d4, 0x10b981, 0xeab308, 0xec4899, 0x8b5cf6, 0x3b82f6, 0xf43f5e];
+      var baseGlbAsset = null;
+
+      function crossfadePlayerAction(targetName) {
+        if (!player.mixer) return;
+        var nextAction = player.actions[targetName];
+        if (!nextAction || player.activeAction === nextAction) return;
+        nextAction.reset().play();
+        if (player.activeAction) {
+          player.activeAction.crossFadeTo(nextAction, 0.22, true);
+        }
+        player.activeAction = nextAction;
+      }
+
+      function attachPlayerGlbModel(gltf) {
+        while (player.group.children.length > 0) {
+          player.group.remove(player.group.children[0]);
+        }
+        var model = gltf.scene;
+        var rightHandBone = null;
+
+        model.traverse(function (child) {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+              child.material = child.material.clone();
+              // Tint Lucia street outfit accent
+              if (/body|shirt|top|beta_surface/i.test(child.name)) {
+                child.material.color.setHex(0xf43f5e);
+              }
+            }
+          }
+          if (child.isBone && /RightHand$/i.test(child.name) && !rightHandBone) {
+            rightHandBone = child;
+          }
+        });
+
+        if (rightHandBone) {
+          player.gunMesh.position.set(0, 0.08, 0.18);
+          player.gunMesh.rotation.set(0, 0, 0);
+          rightHandBone.add(player.gunMesh);
+        } else {
+          player.gunMesh.position.set(0.28, 1.15, 0.35);
+          model.add(player.gunMesh);
+        }
+
+        player.group.add(model);
+
+        if (gltf.animations && gltf.animations.length > 0) {
+          player.mixer = new THREE.AnimationMixer(model);
+          var clips = gltf.animations;
+          var findClip = function (regex, fallbackIdx) {
+            for (var i = 0; i < clips.length; i++) {
+              if (regex.test(clips[i].name)) return clips[i];
+            }
+            return clips[Math.min(fallbackIdx, clips.length - 1)];
+          };
+          var idleClip = findClip(/idle/i, 0);
+          var walkClip = findClip(/walk/i, 1);
+          var runClip = findClip(/run/i, 2);
+
+          player.actions.idle = player.mixer.clipAction(idleClip);
+          player.actions.walk = player.mixer.clipAction(walkClip);
+          player.actions.run = player.mixer.clipAction(runClip);
+          player.activeAction = player.actions.idle;
+          player.activeAction.play();
+        }
+      }
+
+      function initInfiniteNpcs(gltfSource) {
+        // Clear old NPCs if reloading custom GLB
+        for (var k = 0; k < npcs.length; k++) {
+          scene.remove(npcs[k].group);
+        }
+        npcs.length = 0;
+
+        for (var i = 0; i < 20; i++) {
+          var npcGroup = new THREE.Group();
+          var mixer = null;
+          var fallbackLimbs = null;
+          var tintHex = npcPalette[i % npcPalette.length];
+
+          if (gltfSource && THREE.SkeletonUtils) {
+            var clonedScene = THREE.SkeletonUtils.clone(gltfSource.scene);
+            clonedScene.traverse(function (node) {
+              if (node.isMesh) {
+                node.castShadow = true;
+                if (node.material) {
+                  node.material = node.material.clone();
+                  node.material.color.setHex(tintHex);
+                }
+              }
+            });
+            npcGroup.add(clonedScene);
+
+            if (gltfSource.animations && gltfSource.animations.length > 0) {
+              mixer = new THREE.AnimationMixer(clonedScene);
+              var walkClip = gltfSource.animations[0];
+              for (var c = 0; c < gltfSource.animations.length; c++) {
+                if (/walk|run/i.test(gltfSource.animations[c].name)) {
+                  walkClip = gltfSource.animations[c];
+                  break;
+                }
+              }
+              var act = mixer.clipAction(walkClip);
+              act.time = Math.random() * 2;
+              act.play();
+            }
+          } else {
+            fallbackLimbs = buildArticulatedCharacterFallback(tintHex, 0x1e293b);
+            npcGroup.add(fallbackLimbs);
+          }
+
+          var angle = (i / 20) * Math.PI * 2;
+          var dist = 18 + (i % 5) * 16;
+          npcGroup.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+          var dirAngle = Math.floor(Math.random() * 4) * (Math.PI / 2);
+          npcGroup.rotation.y = dirAngle;
+
+          scene.add(npcGroup);
+          npcs.push({
+            group: npcGroup,
+            mixer: mixer,
+            fallback: fallbackLimbs,
+            heading: dirAngle,
+            speed: 2.2 + (i % 3) * 0.65,
+            hp: 100
+          });
+        }
+      }
+
+      function loadCharacterGlbUrl(url, isUserTriggered) {
+        var loader = new THREE.GLTFLoader();
+        loader.load(
+          url,
+          function (gltf) {
+            baseGlbAsset = gltf;
+            attachPlayerGlbModel(gltf);
+            initInfiniteNpcs(gltf);
+            if (isUserTriggered) showToast('LOADED 3D RIGGED CHARACTER (.GLB)');
+          },
+          undefined,
+          function () {
+            if (url.indexOf('Xbot.glb') !== -1) {
+              loadCharacterGlbUrl('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/Soldier.glb', false);
+            } else if (isUserTriggered) {
+              showToast('GLB URL BLOCKED OR INVALID — USING ARTICULATED RIG');
+            }
+          }
+        );
+      }
+
+      // Spawn 10 Moving Traffic Vehicles around the city road lanes
+      function initMovingTraffic() {
+        for (var i = 0; i < 10; i++) {
+          var v;
+          var rCoord = roadCoords[i % roadCoords.length];
+          var along = -90 + i * 22;
+          var isNS = i % 2 === 0;
+          var tx = isNS ? rCoord + 3.8 : along;
+          var tz = isNS ? along : rCoord - 3.8;
+          var rot = isNS ? 0 : Math.PI / 2;
+
+          if (i % 3 === 0) {
+            v = spawnAutoRickshaw(tx, tz, rot);
+          } else if (i % 4 === 0) {
+            v = spawnSuvOrAmbulance(tx, tz, rot, false);
+          } else {
+            v = spawnAutoRickshaw(tx, tz, rot);
+          }
+          v.isTraffic = true;
+          v.trafficSpeed = 9 + (i % 3) * 3;
+          trafficVehicles.push(v);
+        }
+      }
+
+      // ============================================================================
+      // 13. INITIALIZE ENTIRE INDIAN OPEN-WORLD CITY SCENE
+      // ============================================================================
+      buildWorldGrid();
+      buildHinduMandir(-75, -75);
+      buildCityHospital(75, -75);
+      buildStateBank(-75, 75);
+      buildVidyaSchool(75, 75);
+      buildPublicPark(0, -75);
+      populateIndianBazaarAndHouses();
+
+      // Spawn Hero Vehicles near Player Spawn & Landmarks
+      var heroFerrari = spawnFerrariVehicle(6, 16, Math.PI);
+      var heroAuto = spawnAutoRickshaw(-6, 15, Math.PI);
+      var heroPoliceSuv = spawnSuvOrAmbulance(12, -8, -Math.PI / 2, false);
+      var hospAmbulance = spawnSuvOrAmbulance(75, -56, 0, true);
+
+      initInfiniteNpcs(null);
+      initMovingTraffic();
+      loadCharacterGlbUrl('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/Xbot.glb', false);
+
+      // ============================================================================
+      // 14. INPUT SYSTEM (360 VIRTUAL JOYSTICK, TOUCH ARC BUTTONS, KEYBOARD & MOUSE)
+      // ============================================================================
+      var keys = {};
+      var touchState = {
+        joyX: 0,
+        joyY: 0,
+        steerLeft: false,
+        steerRight: false,
+        fire: false,
+        aim: false,
+        sprint: false
+      };
+
+      var camOrbit = {
+        yaw: 0,
+        pitch: 0.28,
+        smoothPos: new THREE.Vector3(0, 6, -10),
+        smoothLook: new THREE.Vector3(0, 1.5, 0)
+      };
+
+      var gameStarted = false;
+
+      window.addEventListener('keydown', function (e) {
+        keys[e.code] = true;
+        if ((e.code === 'Enter' || e.code === 'Space') && !gameStarted) {
+          startGameSession(false);
+        }
+        if (e.code === 'KeyF') toggleEnterExitVehicle();
+        if (e.code === 'KeyH') triggerVehicleHorn();
+        if (e.code === 'Space' && gameStarted) triggerJumpOrReset();
+        if (e.code === 'Escape') toggleSettingsDrawer();
+      });
+
+      window.addEventListener('keyup', function (e) {
+        keys[e.code] = false;
+      });
+
+      window.addEventListener('blur', function () {
+        keys = {};
+        touchState.joyX = 0;
+        touchState.joyY = 0;
+        touchState.fire = false;
+      });
+
+      // Virtual Thumb Joystick Drag Logic
+      var joyZone = document.getElementById('joystick-zone');
+      var joyKnob = document.getElementById('joystick-knob');
+      var joyTouchId = null;
+      var joyCenter = { x: 0, y: 0 };
+
+      function updateJoystickKnob(clientX, clientY) {
+        var dx = clientX - joyCenter.x;
+        var dy = clientY - joyCenter.y;
+        var maxR = 44;
+        var dist = Math.hypot(dx, dy);
+        if (dist > maxR) {
+          dx = (dx / dist) * maxR;
+          dy = (dy / dist) * maxR;
+        }
+        joyKnob.style.transform = 'translate(' + dx.toFixed(1) + 'px, ' + dy.toFixed(1) + 'px)';
+        touchState.joyX = dx / maxR;
+        touchState.joyY = dy / maxR;
+      }
+
+      function resetJoystickKnob() {
+        joyTouchId = null;
+        joyKnob.style.transform = 'translate(0px, 0px)';
+        touchState.joyX = 0;
+        touchState.joyY = 0;
+      }
+
+      joyZone.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        joyTouchId = e.pointerId;
+        var rect = joyZone.getBoundingClientRect();
+        joyCenter.x = rect.left + rect.width / 2;
+        joyCenter.y = rect.top + rect.height / 2;
+        updateJoystickKnob(e.clientX, e.clientY);
+        joyZone.setPointerCapture(e.pointerId);
+      });
+
+      joyZone.addEventListener('pointermove', function (e) {
+        if (e.pointerId === joyTouchId) {
+          updateJoystickKnob(e.clientX, e.clientY);
+        }
+      });
+
+      joyZone.addEventListener('pointerup', resetJoystickKnob);
+      joyZone.addEventListener('pointercancel', resetJoystickKnob);
+
+      // Right-Half Touch / Mouse Drag for Smooth 3rd-Person Camera Rotation
+      var camTouchZone = document.getElementById('camera-touch-zone');
+      var lookPointerId = null;
+      var lastLookPos = { x: 0, y: 0 };
+
+      camTouchZone.addEventListener('pointerdown', function (e) {
+        lookPointerId = e.pointerId;
+        lastLookPos.x = e.clientX;
+        lastLookPos.y = e.clientY;
+        camTouchZone.setPointerCapture(e.pointerId);
+      });
+
+      camTouchZone.addEventListener('pointermove', function (e) {
+        if (e.pointerId === lookPointerId) {
+          var dx = e.clientX - lastLookPos.x;
+          var dy = e.clientY - lastLookPos.y;
+          lastLookPos.x = e.clientX;
+          lastLookPos.y = e.clientY;
+          camOrbit.yaw -= dx * 0.0065;
+          camOrbit.pitch = THREE.MathUtils.clamp(camOrbit.pitch + dy * 0.005, 0.06, 1.15);
+        }
+      });
+
+      camTouchZone.addEventListener('pointerup', function () { lookPointerId = null; });
+      camTouchZone.addEventListener('pointercancel', function () { lookPointerId = null; });
+
+      // Bind Hold Buttons
+      function bindHoldBtn(id, propName) {
+        var el = document.getElementById(id);
+        el.addEventListener('pointerdown', function (e) {
+          e.preventDefault();
+          touchState[propName] = true;
+          el.classList.add('active');
+        });
+        var release = function () {
+          touchState[propName] = false;
+          el.classList.remove('active');
+        };
+        el.addEventListener('pointerup', release);
+        el.addEventListener('pointerleave', release);
+        el.addEventListener('pointercancel', release);
+      }
+
+      bindHoldBtn('btn-fire', 'fire');
+      bindHoldBtn('btn-aim', 'aim');
+      bindHoldBtn('btn-sprint', 'sprint');
+      bindHoldBtn('btn-steer-left', 'steerLeft');
+      bindHoldBtn('btn-steer-right', 'steerRight');
+
+      document.getElementById('btn-jump').addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        triggerJumpOrReset();
+      });
+
+      document.getElementById('btn-vehicle').addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        toggleEnterExitVehicle();
+      });
+
+      document.getElementById('btn-horn').addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        triggerVehicleHorn();
+      });
+
+      // ============================================================================
+      // 15. GAMEPLAY ACTIONS (SHOOTING, ENTER/EXIT VEHICLE, HORN, WANTED STARS)
+      // ============================================================================
+      var toastTimer = null;
+      function showToast(msg) {
+        var el = document.getElementById('toast-banner');
+        el.textContent = msg;
+        el.classList.add('visible');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () {
+          el.classList.remove('visible');
+        }, 2600);
+      }
+
+      function updateStarsHud() {
+        var starEls = document.querySelectorAll('#hud-stars .star-icon');
+        for (var i = 0; i < starEls.length; i++) {
+          if (i < player.wanted) starEls[i].classList.add('active');
+          else starEls[i].classList.remove('active');
+        }
+      }
+
+      function formatIndianRupees(num) {
+        return '₹' + Math.floor(num).toLocaleString('en-IN');
+      }
+
+      function triggerJumpOrReset() {
+        if (player.inVehicle) {
+          player.inVehicle.mesh.rotation.z = 0;
+          player.inVehicle.mesh.rotation.x = 0;
+          showToast('VEHICLE STABILIZED');
+          return;
+        }
+        if (player.onGround) {
+          player.vy = 7.8;
+          player.onGround = false;
+        }
+      }
+
+      function triggerVehicleHorn() {
+        var isPol = player.inVehicle && player.inVehicle.isPolice;
+        Sfx.playIndianHorn(isPol);
+        showToast(isPol ? '🚨 PCR 112 POLICE SIREN' : '📢 HORN OK PLEASE!');
+      }
+
+      function findNearestVehicle() {
+        var pPos = player.group.position;
+        var best = null;
+        var bestDist = 7.5;
+        for (var i = 0; i < drivableVehicles.length; i++) {
+          var v = drivableVehicles[i];
+          var d = pPos.distanceTo(v.mesh.position);
+          if (d < bestDist) {
+            bestDist = d;
+            best = v;
+          }
+        }
+        return best;
+      }
+
+      function setDrivingHudMode(isDriving) {
+        document.getElementById('joystick-zone').style.display = isDriving ? 'none' : 'flex';
+        document.getElementById('drive-controls-left').style.display = isDriving ? 'flex' : 'none';
+        document.getElementById('speedometer-hud').style.display = isDriving ? 'flex' : 'none';
+
+        document.getElementById('lbl-fire').textContent = isDriving ? 'GAS' : 'FIRE';
+        document.getElementById('lbl-aim').textContent = isDriving ? 'BRAKE' : 'AIM';
+        document.getElementById('lbl-sprint').textContent = isDriving ? 'DRIFT' : 'SPRINT';
+        document.getElementById('lbl-vehicle').textContent = isDriving ? 'EXIT' : 'DRIVE';
+      }
+
+      function toggleEnterExitVehicle() {
+        if (player.inVehicle) {
+          var v = player.inVehicle;
+          player.group.position.copy(v.mesh.position);
+          player.group.position.x -= Math.cos(v.mesh.rotation.y) * 2.5;
+          player.group.position.z += Math.sin(v.mesh.rotation.y) * 2.5;
+          player.group.position.y = 0;
+          player.group.visible = true;
+          player.inVehicle = null;
+          setDrivingHudMode(false);
+          showToast('EXITED VEHICLE');
+          return;
+        }
+
+        var nearest = findNearestVehicle();
+        if (nearest) {
+          nearest.isTraffic = false;
+          player.inVehicle = nearest;
+          player.group.visible = false;
+          camOrbit.yaw = nearest.mesh.rotation.y + Math.PI;
+          setDrivingHudMode(true);
+          Sfx.playIndianHorn(nearest.isPolice);
+          showToast('DRIVING: ' + nearest.type.toUpperCase());
+        } else {
+          showToast('WALK CLOSER TO A VEHICLE OR SUMMON FERRARI');
+        }
+      }
+
+      // Raycast Gun Combat System
+      var raycaster = new THREE.Raycaster();
+      var _muzzlePos = new THREE.Vector3();
+      var _aimDir = new THREE.Vector3();
+
+      function firePlayerWeapon() {
+        if (player.fireCooldown > 0 || player.inVehicle) return;
+        player.fireCooldown = 0.13;
+
+        if (player.ammoMag <= 0) {
+          player.ammoMag = 30;
+          player.ammoReserve = Math.max(0, player.ammoReserve - 30);
+          showToast('RELOADING TACTICAL CARBINE...');
+        } else {
+          player.ammoMag--;
+        }
+        document.getElementById('hud-ammo').textContent = player.ammoMag + ' / ' + player.ammoReserve;
+
+        Sfx.playGunshot();
+
+        // Camera recoil kick
+        camOrbit.pitch = Math.max(0.05, camOrbit.pitch - 0.018);
+
+        player.gunMesh.getWorldPosition(_muzzlePos);
+        muzzleLight.position.copy(_muzzlePos);
+        muzzleLight.intensity = 4.5;
+
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+        _aimDir.copy(raycaster.ray.direction);
+
+        // Turn character toward firing direction
+        player.heading = Math.atan2(_aimDir.x, _aimDir.z);
+        player.group.rotation.y = player.heading;
+
+        var hitPoint = _muzzlePos.clone().add(_aimDir.clone().multiplyScalar(65));
+        var hitNpc = false;
+
+        // Check NPC & Police vehicle hits
+        for (var i = 0; i < npcs.length; i++) {
+          var npc = npcs[i];
+          var npcCenter = npc.group.position.clone().add(new THREE.Vector3(0, 1.0, 0));
+          var distToRay = raycaster.ray.distanceToPoint(npcCenter);
+          var distToPlayer = npcCenter.distanceTo(_muzzlePos);
+          if (distToRay < 0.85 && distToPlayer < 65) {
+            hitPoint.copy(npcCenter);
+            hitNpc = true;
+            npc.speed = 6.2; // NPC panics and sprints
+            player.cash += 500;
+            document.getElementById('hud-cash').textContent = formatIndianRupees(player.cash);
+            if (player.wanted < 5) {
+              player.wanted = Math.min(5, player.wanted + 1);
+              updateStarsHud();
+              Sfx.playIndianHorn(true);
+              showToast('★ WANTED LEVEL INCREASED! PCR 112 ALERTED');
+            }
+            break;
+          }
+        }
+
+        spawnBulletTracerAndSparks(_muzzlePos, hitPoint, hitNpc);
+      }
+
+      // ============================================================================
+      // 16. ROTATING CIRCULAR GPS MINI-MAP RADAR (2D CANVAS)
+      // ============================================================================
+      var minimapCanvas = document.getElementById('minimap-canvas');
+      var mCtx = minimapCanvas.getContext('2d');
+      var radarNorthBadge = document.getElementById('radar-north');
+
+      function renderRotatingMinimap(px, pz, camYaw) {
+        var w = minimapCanvas.width;
+        var h = minimapCanvas.height;
+        var cx = w / 2;
+        var cy = h / 2;
+        var scale = 0.52;
+
+        mCtx.clearRect(0, 0, w, h);
+        mCtx.fillStyle = '#0c1322';
+        mCtx.fillRect(0, 0, w, h);
+
+        mCtx.save();
+        mCtx.translate(cx, cy);
+        mCtx.rotate(camYaw - Math.PI);
+
+        // Draw Road Grid
+        mCtx.strokeStyle = '#334155';
+        mCtx.lineWidth = 7;
+        for (var i = 0; i < roadCoords.length; i++) {
+          var rc = roadCoords[i];
+          var rx = (rc - px) * scale;
+          var rz = (rc - pz) * scale;
+
+          mCtx.beginPath();
+          mCtx.moveTo(rx, (-260 - pz) * scale);
+          mCtx.lineTo(rx, (260 - pz) * scale);
+          mCtx.stroke();
+
+          mCtx.beginPath();
+          mCtx.moveTo((-260 - px) * scale, rz);
+          mCtx.lineTo((260 - px) * scale, rz);
+          mCtx.stroke();
+        }
+
+        // Draw Live NPC Blips
+        mCtx.fillStyle = '#94a3b8';
+        for (var n = 0; n < npcs.length; n++) {
+          var nx = (npcs[n].group.position.x - px) * scale;
+          var nz = (npcs[n].group.position.z - pz) * scale;
+          if (nx * nx + nz * nz < 68 * 68) {
+            mCtx.fillRect(nx - 1.5, nz - 1.5, 3, 3);
+          }
+        }
+
+        // Draw Vehicle Blips
+        for (var v = 0; v < drivableVehicles.length; v++) {
+          var veh = drivableVehicles[v];
+          var vx = (veh.mesh.position.x - px) * scale;
+          var vz = (veh.mesh.position.z - pz) * scale;
+          if (vx * vx + vz * vz < 68 * 68) {
+            mCtx.fillStyle = veh.isPolice ? '#38bdf8' : '#f43f5e';
+            mCtx.beginPath();
+            mCtx.arc(vx, vz, 3.2, 0, Math.PI * 2);
+            mCtx.fill();
+          }
+        }
+
+        // Draw Landmark Icons
+        for (var l = 0; l < landmarks.length; l++) {
+          var lm = landmarks[l];
+          var lx = (lm.x - px) * scale;
+          var lz = (lm.z - pz) * scale;
+          var dist = Math.hypot(lx, lz);
+          if (dist > 64) {
+            lx = (lx / dist) * 64;
+            lz = (lz / dist) * 64;
+          }
+          mCtx.fillStyle = lm.color;
+          mCtx.beginPath();
+          mCtx.arc(lx, lz, 7.5, 0, Math.PI * 2);
+          mCtx.fill();
+
+          mCtx.fillStyle = '#ffffff';
+          mCtx.font = 'bold 9px sans-serif';
+          mCtx.textAlign = 'center';
+          mCtx.textBaseline = 'middle';
+          mCtx.fillText(lm.icon, lx, lz);
+        }
+
+        mCtx.restore();
+
+        // Center Player Direction Arrow
+        mCtx.fillStyle = '#22c55e';
+        mCtx.strokeStyle = '#ffffff';
+        mCtx.lineWidth = 1.5;
+        mCtx.beginPath();
+        mCtx.moveTo(cx, cy - 7);
+        mCtx.lineTo(cx + 5.5, cy + 6);
+        mCtx.lineTo(cx, cy + 3);
+        mCtx.lineTo(cx - 5.5, cy + 6);
+        mCtx.closePath();
+        mCtx.fill();
+        mCtx.stroke();
+
+        // Orbit North Indicator on Radar Rim
+        var nAng = camYaw - Math.PI / 2;
+        var nxRim = cx + Math.cos(nAng) * 62;
+        var nyRim = cy + Math.sin(nAng) * 62;
+        radarNorthBadge.style.left = nxRim + 'px';
+        radarNorthBadge.style.top = (nyRim - 7) + 'px';
+      }
+
+      // ============================================================================
+      // 17. UI DRAWER & QUICK ACTIONS BINDINGS
+      // ============================================================================
+      function startGameSession(startInFerrari) {
+        gameStarted = true;
+        document.getElementById('title-screen').classList.add('hidden');
+        Sfx.init();
+        if (startInFerrari && heroFerrari) {
+          player.inVehicle = heroFerrari;
+          player.group.visible = false;
+          setDrivingHudMode(true);
+          showToast('DRIVING: FERRARI F8 TRIBUTO');
+        } else {
+          showToast('WELCOME TO BHARAT NAGAR OPEN WORLD');
+        }
+      }
+
+      document.getElementById('btn-start-game').addEventListener('click', function () {
+        startGameSession(false);
+      });
+
+      document.getElementById('btn-spawn-ferrari-title').addEventListener('click', function () {
+        startGameSession(true);
+      });
+
+      function toggleSettingsDrawer() {
+        var modal = document.getElementById('settings-modal');
+        modal.classList.toggle('open');
+      }
+
+      document.getElementById('btn-open-drawer').addEventListener('click', toggleSettingsDrawer);
+      document.getElementById('btn-title-devops').addEventListener('click', toggleSettingsDrawer);
+      document.getElementById('btn-hero-apk-guide').addEventListener('click', toggleSettingsDrawer);
+      document.getElementById('btn-close-drawer').addEventListener('click', toggleSettingsDrawer);
+
+      document.getElementById('btn-load-custom-glb').addEventListener('click', function () {
+        var url = document.getElementById('custom-glb-input').value.trim();
+        if (url) {
+          loadCharacterGlbUrl(url, true);
+          toggleSettingsDrawer();
+        }
+      });
+
+      var presetBtns = document.querySelectorAll('.preset-glb-btn');
+      for (var pb = 0; pb < presetBtns.length; pb++) {
+        presetBtns[pb].addEventListener('click', function () {
+          var u = this.getAttribute('data-url');
+          document.getElementById('custom-glb-input').value = u;
+          loadCharacterGlbUrl(u, true);
+          toggleSettingsDrawer();
+        });
+      }
+
+      document.getElementById('btn-clear-wanted').addEventListener('click', function () {
+        player.wanted = 0;
+        updateStarsHud();
+        showToast('WANTED LEVEL CLEARED');
+      });
+
+      document.getElementById('btn-lock-landscape').addEventListener('click', function () {
+        lockLandscapeFullscreen();
+        showToast('LOCKED 16:9 LANDSCAPE FULLSCREEN');
+      });
+
+      document.getElementById('btn-summon-ferrari').addEventListener('click', function () {
+        var pos = player.inVehicle ? player.inVehicle.mesh.position : player.group.position;
+        heroFerrari.mesh.position.set(pos.x + 3.5, 0, pos.z + 3.5);
+        heroFerrari.speed = 0;
+        showToast('🏎️ FERRARI DELIVERED BESIDE YOU');
+      });
+
+      document.getElementById('btn-summon-auto').addEventListener('click', function () {
+        var pos = player.inVehicle ? player.inVehicle.mesh.position : player.group.position;
+        heroAuto.mesh.position.set(pos.x - 3.5, 0, pos.z + 3.5);
+        heroAuto.speed = 0;
+        showToast('🛺 INDIAN AUTO-RICKSHAW DELIVERED');
+      });
+
+      document.getElementById('btn-teleport-mandir').addEventListener('click', function () {
+        if (player.inVehicle) toggleEnterExitVehicle();
+        player.group.position.set(-75, 0, -45);
+        Sfx.playTempleBell();
+        showToast('🛕 TELEPORTED TO SHRI RAM MANDIR');
+      });
+
+      document.getElementById('btn-mute-audio').addEventListener('click', function () {
+        Sfx.muted = !Sfx.muted;
+        this.textContent = Sfx.muted ? '🔇 Muted' : '🔊 Audio';
+      });
+
+      var EMBEDDED_WORKFLOW_YML = [
+        'name: Build Indian GTA 6 Android APK',
+        '',
+        'on:',
+        '  push:',
+        '    branches: [ "main", "master" ]',
+        '    paths-ignore:',
+        '      - "Indian-GTA-6.apk"',
+        '  workflow_dispatch:',
+        '',
+        'permissions:',
+        '  contents: write',
+        '',
+        'jobs:',
+        '  build-android-apk:',
+        '    name: Compile Landscape Fullscreen Android APK',
+        '    runs-on: ubuntu-latest',
+        '',
+        '    steps:',
+        '      - name: Checkout Repository',
+        '        uses: actions/checkout@v4',
+        '        with:',
+        '          fetch-depth: 0',
+        '',
+        '      - name: Set up Node.js 20',
+        '        uses: actions/setup-node@v4',
+        '        with:',
+        '          node-version: "20"',
+        '',
+        '      - name: Set up Java 21 (Temurin) for Android Gradle & Capacitor 6',
+        '        uses: actions/setup-java@v4',
+        '        with:',
+        '          distribution: "temurin"',
+        '          java-version: "21"',
+        '',
+        '      - name: Configure Pre-Installed Android SDK Licenses',
+        '        run: |',
+        '          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"',
+        '          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV',
+        '          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV',
+        '',
+        '      - name: Initialize Capacitor Android Project & Wrap index.html',
+        '        run: |',
+        '          rm -rf /tmp/indian-gta6-apk',
+        '          mkdir -p /tmp/indian-gta6-apk/www',
+        '          cp index.html /tmp/indian-gta6-apk/www/index.html',
+        '          cd /tmp/indian-gta6-apk',
+        '          echo \'{"name":"indian-gta-6-openworld","version":"1.0.0","private":true}\' > package.json',
+        '          npm install @capacitor/core@6.1.2 @capacitor/cli@6.1.2 @capacitor/android@6.1.2',
+        '          echo \'{"appId":"com.bharatvice.indiangta6","appName":"Indian GTA 6","webDir":"www","bundledWebRuntime":false,"server":{"androidScheme":"https","cleartext":true,"allowNavigation":["*"]},"android":{"allowMixedContent":true}}\' > capacitor.config.json',
+        '          npx cap add android',
+        '          npx cap sync android',
+        '',
+        '      - name: Configure Landscape 16:9 Fullscreen & Cleartext',
+        '        run: |',
+        '          cd /tmp/indian-gta6-apk',
+        '          python3 -c \'import re; p="android/app/src/main/AndroidManifest.xml"; s=open(p).read(); s=s.replace("<application","<application android:usesCleartextTraffic=\\"true\\" android:hardwareAccelerated=\\"true\\""); s=s.replace("android:name=\\".MainActivity\\"","android:name=\\".MainActivity\\" android:screenOrientation=\\"sensorLandscape\\""); open(p,"w").write(s)\'',
+        '',
+        '      - name: Build Debug APK with Gradle',
+        '        run: |',
+        '          cd /tmp/indian-gta6-apk/android',
+        '          chmod +x gradlew',
+        '          ./gradlew assembleDebug --no-daemon',
+        '          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/Indian-GTA-6.apk"',
+        '',
+        '      - name: Save Indian-GTA-6.apk Directly into GitHub Repo Root',
+        '        continue-on-error: true',
+        '        run: |',
+        '          git config user.name "github-actions[bot]"',
+        '          git config user.email "github-actions[bot]@users.noreply.github.com"',
+        '          git add -f Indian-GTA-6.apk',
+        '          git diff --staged --quiet || (git commit -m "Auto-build Indian-GTA-6.apk [skip ci]" && git push)',
+        '',
+        '      - name: Upload Indian-GTA-6-APK to GitHub Actions Artifacts',
+        '        uses: actions/upload-artifact@v4',
+        '        with:',
+        '          name: Indian-GTA-6-APK',
+        '          path: Indian-GTA-6.apk',
+        '',
+        '      - name: Publish Direct .APK to GitHub Releases',
+        '        uses: softprops/action-gh-release@v2',
+        '        continue-on-error: true',
+        '        with:',
+        '          tag_name: v1.0.${{ github.run_number }}',
+        '          name: "Indian GTA 6 Android APK (v1.0.${{ github.run_number }})"',
+        '          files: Indian-GTA-6.apk'
+      ].join('\n');
+
+      function copyTextWithBoxFallback(text, label) {
+        var box = document.getElementById('code-export-box');
+        if (box) {
+          box.value = text;
+          box.focus();
+          box.select();
+          try { document.execCommand('copy'); } catch (e) {}
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).catch(function () {});
+        }
+        showToast('COPIED ' + label + ' TO CLIPBOARD!');
+      }
+
+      document.getElementById('btn-download-html').addEventListener('click', function () {
+        var fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+        copyTextWithBoxFallback(fullHtml, 'INDEX.HTML');
+        var htmlBlob = new Blob([fullHtml], { type: 'text/html' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(htmlBlob);
+        a.download = 'index.html';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+
+      document.getElementById('btn-copy-html').addEventListener('click', function () {
+        var fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+        copyTextWithBoxFallback(fullHtml, 'FULL INDEX.HTML CODE');
+      });
+
+      document.getElementById('btn-download-workflow').addEventListener('click', function () {
+        copyTextWithBoxFallback(EMBEDDED_WORKFLOW_YML, 'BUILD-APK.YML');
+        var ymlBlob = new Blob([EMBEDDED_WORKFLOW_YML], { type: 'text/yaml' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(ymlBlob);
+        a.download = 'build-apk.yml';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+
+      document.getElementById('btn-copy-workflow').addEventListener('click', function () {
+        copyTextWithBoxFallback(EMBEDDED_WORKFLOW_YML, 'BUILD-APK.YML WORKFLOW');
+      });
+
+      // ============================================================================
+      // 17B. DIRECT ANDROID APP INSTALLER (WEBAPK / PWA) & 1-CLICK GITHUB PUSHER
+      // ============================================================================
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function () {});
+        });
+      }
+
+      var deferredInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        showToast('📲 DIRECT ANDROID APP INSTALL READY!');
+      });
+
+      function triggerDirectDownloadOrInstall() {
+        // 1. Trigger native Android Chrome WebAPK / PWA install prompt if available
+        if (deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          deferredInstallPrompt.userChoice.then(function (choice) {
+            if (choice.outcome === 'accepted') {
+              showToast('INSTALLED INDIAN GTA 6 ON PHONE!');
+            }
+            deferredInstallPrompt = null;
+          });
+          return;
+        }
+
+        // 2. Always trigger direct download of Indian-GTA-6.apk
+        try {
+          var dlLink = document.createElement('a');
+          dlLink.href = '/Indian-GTA-6.apk';
+          dlLink.download = 'Indian-GTA-6.apk';
+          dlLink.target = '_blank';
+          document.body.appendChild(dlLink);
+          dlLink.click();
+          document.body.removeChild(dlLink);
+        } catch (err) {}
+
+        // 3. If running inside AI Studio preview iframe on mobile, also open top-level app URL so Chrome's "Install App / Add to Home Screen" works directly
+        var inIframe = false;
+        try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
+        if (inIframe) {
+          window.open('https://ais-pre-daqzisvd6taiean4l5mlrv-369440577631.asia-southeast1.run.app', '_blank', 'noopener');
+          showToast('DOWNLOADING GAME + OPENING DIRECT INSTALL TAB!');
+        } else {
+          showToast('DOWNLOAD STARTED! YA CHROME MENU (⋮) -> "INSTALL APP" DABAYEIN');
+          document.getElementById('settings-modal').classList.add('open');
+        }
+      }
+
+      var btnInstallHero = document.getElementById('btn-direct-install-hero');
+      if (btnInstallHero) btnInstallHero.addEventListener('click', triggerDirectDownloadOrInstall);
+      var btnInstallHud = document.getElementById('btn-direct-install-hud');
+      if (btnInstallHud) btnInstallHud.addEventListener('click', triggerDirectDownloadOrInstall);
+      var btnInstallModal = document.getElementById('btn-direct-install-modal');
+      if (btnInstallModal) btnInstallModal.addEventListener('click', triggerDirectDownloadOrInstall);
+
+      // Optional 1-Click Auto-Push to user's GitHub repository (rounakkumar-oss/My-india-gta)
+      var btnAutoPushGh = document.getElementById('btn-auto-push-github');
+      if (btnAutoPushGh) {
+        btnAutoPushGh.addEventListener('click', async function () {
+          var repo = (document.getElementById('gh-repo-input').value || '').trim();
+          var token = (document.getElementById('gh-token-input').value || '').trim();
+          var statusEl = document.getElementById('gh-push-status');
+          if (!repo || !token) {
+            statusEl.textContent = '⚠️ Please paste your GitHub Personal Access Token (ghp_...) first, or use the Green Direct Download buttons above!';
+            return;
+          }
+          statusEl.textContent = '⏳ Uploading index.html and .github/workflows/build-apk.yml to ' + repo + '...';
+          try {
+            function utf8ToBase64(str) {
+              return window.btoa(unescape(encodeURIComponent(str)));
+            }
+            async function putGithubFile(path, content, msg) {
+              var apiUrl = 'https://api.github.com/repos/' + repo + '/contents/' + path;
+              var sha = null;
+              var getRes = await fetch(apiUrl, {
+                headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
+              });
+              if (getRes.ok) {
+                var existing = await getRes.json();
+                sha = existing.sha;
+              }
+              var bodyObj = { message: msg, content: utf8ToBase64(content) };
+              if (sha) bodyObj.sha = sha;
+              var putRes = await fetch(apiUrl, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': 'Bearer ' + token,
+                  'Accept': 'application/vnd.github+json',
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(bodyObj)
+              });
+              if (!putRes.ok) {
+                var errTxt = await putRes.text();
+                throw new Error(errTxt);
+              }
+            }
+            var fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+            await putGithubFile('index.html', fullHtml, 'Add Indian GTA 6 3D Open-World Game index.html');
+            await putGithubFile('.github/workflows/build-apk.yml', EMBEDDED_WORKFLOW_YML, 'Add automated Android APK GitHub Actions workflow');
+            statusEl.innerHTML = '✅ SUCCESS! Files uploaded to <b>' + repo + '</b>! Open <a href="https://github.com/' + repo + '/actions" target="_blank" style="color:#4ade80;text-decoration:underline;">github.com/' + repo + '/actions</a> — APK will be ready in 3 mins!';
+            showToast('UPLOADED TO GITHUB SUCCESSFULLY!');
+          } catch (err) {
+            statusEl.textContent = '❌ Error: ' + (err && err.message ? err.message.slice(0, 120) : 'Check token permissions (repo + workflow)');
+          }
+        });
+      }
+
+      // ============================================================================
+      // 18. DYNAMIC INFINITE RADIUS SPAWNER & MAIN 60FPS SIMULATION LOOP
+      // ============================================================================
+      var clock = new THREE.Clock();
+      var frameCount = 0;
+      var fpsAccum = 0;
+      var _forward = new THREE.Vector3();
+      var _right = new THREE.Vector3();
+      var _desiredCamPos = new THREE.Vector3();
+      var _desiredLookAt = new THREE.Vector3();
+
+      function resolveBuildingCollisions(x, z, radius) {
+        var outX = x;
+        var outZ = z;
+        for (var i = 0; i < colliders.length; i++) {
+          var c = colliders[i];
+          var dx = outX - c.x;
+          var dz = outZ - c.z;
+          var overlapX = c.rx + radius - Math.abs(dx);
+          var overlapZ = c.rz + radius - Math.abs(dz);
+          if (overlapX > 0 && overlapZ > 0) {
+            if (overlapX < overlapZ) {
+              outX += dx >= 0 ? overlapX : -overlapX;
+            } else {
+              outZ += dz >= 0 ? overlapZ : -overlapZ;
+            }
+          }
+        }
+        return { x: outX, z: outZ };
+      }
+
+      // Snap coordinate to nearest road/footpath for realistic ahead-of-player respawning
+      function snapToNearestRoadCoordinate(val) {
+        var best = roadCoords[0];
+        var bestD = Math.abs(val - best);
+        for (var i = 1; i < roadCoords.length; i++) {
+          var d = Math.abs(val - roadCoords[i]);
+          if (d < bestD) {
+            bestD = d;
+            best = roadCoords[i];
+          }
+        }
+        return best;
+      }
+
+      function updateSimulation(rawDt) {
+        var dt = Math.min(rawDt, 0.05);
+        var elapsed = clock.getElapsedTime();
+
+        // FPS Counter
+        frameCount++;
+        fpsAccum += rawDt;
+        if (fpsAccum >= 0.5) {
+          var fps = Math.min(60, Math.round(frameCount / fpsAccum));
+          document.getElementById('hud-fps').textContent = fps + ' FPS';
+          frameCount = 0;
+          fpsAccum = 0;
+        }
+
+        // Decay Muzzle Flash
+        if (muzzleLight.intensity > 0) {
+          muzzleLight.intensity = Math.max(0, muzzleLight.intensity - dt * 45);
+        }
+        if (player.fireCooldown > 0) {
+          player.fireCooldown = Math.max(0, player.fireCooldown - dt);
+        }
+
+        // Animate Saffron Mandir Flag & School Tiranga Flag
+        for (var fl = 0; fl < animatedFlags.length; fl++) {
+          var flagMesh = animatedFlags[fl];
+          var posAttr = flagMesh.geometry.attributes.position;
+          for (var vi = 0; vi < posAttr.count; vi++) {
+            var vx = posAttr.getX(vi);
+            posAttr.setZ(vi, Math.sin(vx * 2.5 - elapsed * 6.5) * 0.18 * ((vx + 1.7) / 3.4));
+          }
+          posAttr.needsUpdate = true;
+        }
+
+        // Animate Public Park Water Fountain Droplets
+        for (var fd = 0; fd < fountainDrops.length; fd++) {
+          var drop = fountainDrops[fd];
+          var u = drop.userData;
+          var t = (elapsed * 1.4 + u.phase) % 1;
+          var arcR = t * u.radius;
+          drop.position.set(
+            Math.cos(u.angle) * arcR,
+            2.1 + Math.sin(t * Math.PI) * 2.4 - t * 1.3,
+            Math.sin(u.angle) * arcR
+          );
+        }
+
+        // Flash Police Siren Lightbars
+        var sirenState = Math.floor(elapsed * 8) % 2 === 0;
+        for (var pl = 0; pl < policeLightBars.length; pl++) {
+          policeLightBars[pl].red.material.color.setHex(sirenState ? 0xff1111 : 0x450a0a);
+          policeLightBars[pl].blue.material.color.setHex(sirenState ? 0x1e3a8a : 0x38bdf8);
+        }
+
+        // Update Bullet Tracers & Sparks
+        for (var tr = activeTracers.length - 1; tr >= 0; tr--) {
+          activeTracers[tr].ttl -= dt;
+          if (activeTracers[tr].ttl <= 0) {
+            scene.remove(activeTracers[tr].mesh);
+            activeTracers.splice(tr, 1);
+          }
+        }
+        for (var sp = hitSparks.length - 1; sp >= 0; sp--) {
+          var sObj = hitSparks[sp];
+          sObj.ttl -= dt;
+          sObj.vel.y -= 18 * dt;
+          sObj.mesh.position.addScaledVector(sObj.vel, dt);
+          if (sObj.ttl <= 0) {
+            scene.remove(sObj.mesh);
+            hitSparks.splice(sp, 1);
+          }
+        }
+
+        // Title Screen Atmospheric Camera Orbit
+        if (!gameStarted) {
+          var panAngle = elapsed * 0.14;
+          camera.position.set(Math.cos(panAngle) * 42, 16, Math.sin(panAngle) * 42);
+          camera.lookAt(0, 4, -20);
+          return;
+        }
+
+        // Active Player / Vehicle Control
+        var activePos = player.inVehicle ? player.inVehicle.mesh.position : player.group.position;
+        var activeTravelHeading = player.inVehicle ? player.inVehicle.mesh.rotation.y : player.heading;
+
+        // Highlight Enter Vehicle Button when near a car
+        var vehBtn = document.getElementById('btn-vehicle');
+        if (!player.inVehicle && findNearestVehicle()) {
+          vehBtn.classList.add('nearby-highlight');
+        } else {
+          vehBtn.classList.remove('nearby-highlight');
+        }
+
+        var isAiming = touchState.aim || keys['KeyQ'];
+        var crosshairEl = document.getElementById('crosshair');
+        if (isAiming && !player.inVehicle) crosshairEl.classList.add('aiming');
+        else crosshairEl.classList.remove('aiming');
+
+        if (player.inVehicle) {
+          // VEHICLE DRIVING PHYSICS
+          var v = player.inVehicle;
+          var gas = (keys['KeyW'] || keys['ArrowUp'] || touchState.fire) ? 1 : 0;
+          var brake = (keys['KeyS'] || keys['ArrowDown'] || touchState.aim) ? 1 : 0;
+          var left = (keys['KeyA'] || keys['ArrowLeft'] || touchState.steerLeft || touchState.joyX < -0.25) ? 1 : 0;
+          var right = (keys['KeyD'] || keys['ArrowRight'] || touchState.steerRight || touchState.joyX > 0.25) ? 1 : 0;
+          var drift = (keys['ShiftLeft'] || keys['Space'] || touchState.sprint) ? 1 : 0;
+
+          if (gas) {
+            v.speed = Math.min(v.maxSpeed, v.speed + v.accel * dt);
+          } else if (brake) {
+            v.speed = Math.max(-v.maxSpeed * 0.45, v.speed - v.accel * 1.3 * dt);
+          } else {
+            v.speed *= Math.pow(0.25, dt);
+            if (Math.abs(v.speed) < 0.1) v.speed = 0;
+          }
+
+          var steerInput = left - right;
+          var turnRate = drift ? 2.6 : 1.85;
+          if (Math.abs(v.speed) > 0.4) {
+            var dirSign = v.speed >= 0 ? 1 : -1;
+            v.mesh.rotation.y += steerInput * turnRate * dirSign * dt * Math.min(1, Math.abs(v.speed) / 8);
+          }
+
+          var nx = v.mesh.position.x + Math.sin(v.mesh.rotation.y) * v.speed * dt;
+          var nz = v.mesh.position.z + Math.cos(v.mesh.rotation.y) * v.speed * dt;
+          var colRes = resolveBuildingCollisions(nx, nz, 1.8);
+          v.mesh.position.x = colRes.x;
+          v.mesh.position.z = colRes.z;
+          player.group.position.copy(v.mesh.position);
+
+          // Spin Vehicle Wheels
+          for (var wi = 0; wi < v.wheels.length; wi++) {
+            v.wheels[wi].rotation.x += v.speed * dt * 1.6;
+          }
+
+          // Update Digital Speedometer
+          var kmh = Math.round(Math.abs(v.speed) * 3.6);
+          var gear = v.speed < -0.5 ? 'R' : Math.min(6, Math.max(1, Math.ceil(kmh / 24)));
+          document.getElementById('hud-speed').textContent = kmh;
+          document.getElementById('hud-vehicle-label').textContent = 'KM/H · GEAR ' + gear + ' · ' + v.type.toUpperCase();
+
+          // Smooth Chase Camera behind vehicle
+          var targetCamYaw = v.mesh.rotation.y + Math.PI;
+          if (lookPointerId === null) {
+            var yawDiff = Math.atan2(Math.sin(targetCamYaw - camOrbit.yaw), Math.cos(targetCamYaw - camOrbit.yaw));
+            camOrbit.yaw += yawDiff * Math.min(1, dt * 4.5);
+          }
+          var distCam = 8.8 + Math.min(2.5, Math.abs(v.speed) * 0.06);
+          _desiredCamPos.set(
+            v.mesh.position.x + Math.sin(camOrbit.yaw) * distCam,
+            v.mesh.position.y + 3.2 + camOrbit.pitch * 3.5,
+            v.mesh.position.z + Math.cos(camOrbit.yaw) * distCam
+          );
+          _desiredLookAt.set(v.mesh.position.x, v.mesh.position.y + 1.2, v.mesh.position.z);
+        } else {
+          // ON-FOOT LUCIA CHARACTER MOVEMENT & SKELETAL ANIMATION BLENDING
+          var inX = (keys['KeyD'] || keys['ArrowRight'] ? 1 : 0) - (keys['KeyA'] || keys['ArrowLeft'] ? 1 : 0) + touchState.joyX;
+          var inY = (keys['KeyS'] || keys['ArrowDown'] ? 1 : 0) - (keys['KeyW'] || keys['ArrowUp'] ? 1 : 0) + touchState.joyY;
+          var mag = Math.min(1, Math.hypot(inX, inY));
+          var isSprinting = keys['ShiftLeft'] || keys['ShiftRight'] || touchState.sprint || mag > 0.85;
+
+          _forward.set(-Math.sin(camOrbit.yaw), 0, -Math.cos(camOrbit.yaw)).normalize();
+          _right.set(_forward.z, 0, -_forward.x);
+
+          if (mag > 0.08) {
+            var moveVecX = (_right.x * inX + _forward.x * (-inY));
+            var moveVecZ = (_right.z * inX + _forward.z * (-inY));
+            var targetHeading = Math.atan2(moveVecX, moveVecZ);
+            var hDiff = Math.atan2(Math.sin(targetHeading - player.heading), Math.cos(targetHeading - player.heading));
+            player.heading += hDiff * Math.min(1, dt * 12);
+            player.group.rotation.y = player.heading;
+
+            var walkSpd = isSprinting ? 10.5 : 5.2;
+            player.speed = walkSpd * mag;
+
+            var nextX = player.group.position.x + Math.sin(player.heading) * player.speed * dt;
+            var nextZ = player.group.position.z + Math.cos(player.heading) * player.speed * dt;
+            var footCol = resolveBuildingCollisions(nextX, nextZ, 0.55);
+            player.group.position.x = footCol.x;
+            player.group.position.z = footCol.z;
+
+            crossfadePlayerAction(isSprinting ? 'run' : 'walk');
+          } else {
+            player.speed = 0;
+            crossfadePlayerAction('idle');
+          }
+
+          // Jump & Gravity
+          if (!player.onGround) {
+            player.vy -= 19.6 * dt;
+            player.group.position.y += player.vy * dt;
+            if (player.group.position.y <= 0) {
+              player.group.position.y = 0;
+              player.vy = 0;
+              player.onGround = true;
+            }
+          }
+
+          if (player.mixer) {
+            player.mixer.update(dt);
+          }
+          // Animate articulated fallback limbs if active
+          if (fallbackPlayerVisual.parent === player.group && fallbackPlayerVisual.userData.legL) {
+            var swing = player.speed > 0.2 ? Math.sin(elapsed * 10) * 0.55 : 0;
+            fallbackPlayerVisual.userData.legL.rotation.x = swing;
+            fallbackPlayerVisual.userData.legR.rotation.x = -swing;
+          }
+
+          if (touchState.fire || keys['KeyE']) {
+            firePlayerWeapon();
+          }
+
+          var camDist = isAiming ? 3.2 : 5.6;
+          var shoulderOffset = isAiming ? 0.65 : 0.35;
+          _desiredCamPos.set(
+            player.group.position.x + Math.sin(camOrbit.yaw) * camDist + Math.cos(camOrbit.yaw) * shoulderOffset,
+            player.group.position.y + 1.55 + camOrbit.pitch * 3.2,
+            player.group.position.z + Math.cos(camOrbit.yaw) * camDist - Math.sin(camOrbit.yaw) * shoulderOffset
+          );
+          _desiredLookAt.set(
+            player.group.position.x + Math.cos(camOrbit.yaw) * shoulderOffset,
+            player.group.position.y + 1.45,
+            player.group.position.z - Math.sin(camOrbit.yaw) * shoulderOffset
+          );
+        }
+
+        // Exponential Camera Damping
+        var dampFactor = 1 - Math.exp(-14 * dt);
+        camOrbit.smoothPos.lerp(_desiredCamPos, dampFactor);
+        camOrbit.smoothLook.lerp(_desiredLookAt, dampFactor);
+        camera.position.copy(camOrbit.smoothPos);
+        camera.lookAt(camOrbit.smoothLook);
+
+        // Move SkyDome & Sun Shadow Frustum with Player
+        skyDomeMesh.position.set(activePos.x, 0, activePos.z);
+        sunLight.position.set(activePos.x + 85, 78, activePos.z + 95);
+        sunLight.target.position.set(activePos.x, 0, activePos.z);
+        sunLight.target.updateMatrixWorld();
+
+        // ========================================================================
+        // DYNAMIC INFINITE RADIUS SPAWNER (RECYCLE NPCs & TRAFFIC > 110M AWAY)
+        // ========================================================================
+        for (var ni = 0; ni < npcs.length; ni++) {
+          var npc = npcs[ni];
+          npc.group.position.x += Math.sin(npc.heading) * npc.speed * dt;
+          npc.group.position.z += Math.cos(npc.heading) * npc.speed * dt;
+
+          if (npc.mixer) npc.mixer.update(dt);
+          if (npc.fallback && npc.fallback.userData.legL) {
+            var nSwing = Math.sin(elapsed * 8 + ni) * 0.48;
+            npc.fallback.userData.legL.rotation.x = nSwing;
+            npc.fallback.userData.legR.rotation.x = -nSwing;
+          }
+
+          var distNpc = Math.hypot(npc.group.position.x - activePos.x, npc.group.position.z - activePos.z);
+          if (distNpc > 110) {
+            // Respawn ahead of player along upcoming footpath
+            var aheadDist = 65 + Math.random() * 30;
+            var spreadAng = activeTravelHeading + (Math.random() - 0.5) * 1.1;
+            var spawnX = activePos.x + Math.sin(spreadAng) * aheadDist;
+            var spawnZ = activePos.z + Math.cos(spreadAng) * aheadDist;
+            var snappedRoad = snapToNearestRoadCoordinate(spawnX);
+            npc.group.position.set(snappedRoad + (ni % 2 === 0 ? 9.4 : -9.4), 0, spawnZ);
+            npc.heading = (ni % 2 === 0) ? 0 : Math.PI;
+            npc.group.rotation.y = npc.heading;
+            npc.speed = 2.2 + (ni % 3) * 0.65;
+          }
+        }
+
+        // Update Traffic Vehicles & Recycle > 110m Behind Player
+        for (var ti = 0; ti < trafficVehicles.length; ti++) {
+          var tv = trafficVehicles[ti];
+          if (!tv.isTraffic || tv === player.inVehicle) continue;
+
+          tv.mesh.position.x += Math.sin(tv.mesh.rotation.y) * tv.trafficSpeed * dt;
+          tv.mesh.position.z += Math.cos(tv.mesh.rotation.y) * tv.trafficSpeed * dt;
+          for (var tw = 0; tw < tv.wheels.length; tw++) {
+            tv.wheels[tw].rotation.x += tv.trafficSpeed * dt * 1.5;
+          }
+
+          var distVeh = Math.hypot(tv.mesh.position.x - activePos.x, tv.mesh.position.z - activePos.z);
+          if (distVeh > 110) {
+            var vAhead = 72 + Math.random() * 28;
+            var vAng = activeTravelHeading + (Math.random() - 0.5) * 0.85;
+            var vx = activePos.x + Math.sin(vAng) * vAhead;
+            var vz = activePos.z + Math.cos(vAng) * vAhead;
+            var roadLine = snapToNearestRoadCoordinate(vx);
+            tv.mesh.position.set(roadLine + 3.8, 0, vz);
+            tv.mesh.rotation.y = 0;
+          }
+        }
+
+        // Update Zone Name Indicator & Rotating Radar
+        var nearestLandmarkName = 'MG Road · Bazaar Chowk';
+        var minLmDist = 65;
+        for (var li = 0; li < landmarks.length; li++) {
+          var dLm = Math.hypot(activePos.x - landmarks[li].x, activePos.z - landmarks[li].z);
+          if (dLm < minLmDist) {
+            minLmDist = dLm;
+            nearestLandmarkName = landmarks[li].name;
+          }
+        }
+        document.getElementById('hud-zone-name').textContent = '📍 ' + nearestLandmarkName;
+
+        renderRotatingMinimap(activePos.x, activePos.z, camOrbit.yaw);
+      }
+
+      // Software WebGL Paced Loop vs Hardware GPU 60fps Loop
+      function afterDraw(cb) {
+        try {
+          var gl = renderer.getContext();
+          if (gl && gl.fenceSync) {
+            var sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+            gl.flush();
+            var poll = function () {
+              var state = sync && gl.getSyncParameter(sync, gl.SYNC_STATUS);
+              if (state === gl.UNSIGNALED) {
+                setTimeout(poll, 5);
+              } else {
+                gl.deleteSync(sync);
+                setTimeout(cb, 80);
+              }
+            };
+            setTimeout(poll, 5);
+            return;
+          }
+        } catch (e) {}
+        setTimeout(cb, 80);
+      }
+
+      function tick() {
+        var dt = clock.getDelta();
+        updateSimulation(dt);
+        renderer.render(scene, camera);
+        if (isSoftwareGl) afterDraw(tick);
+        else requestAnimationFrame(tick);
+      }
+
+      window.addEventListener('resize', function () {
+        var stage = document.getElementById('app-stage');
+        var w = stage.clientWidth || window.innerWidth;
+        var h = stage.clientHeight || window.innerHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      });
+
+      tick();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+name: Build Indian GTA 6 Android APK
+
+on:
+  push:
+    branches: [ "main", "master", "**" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-apk:
+    name: Compile Landscape Fullscreen Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Configure Pre-Installed Android SDK Licenses
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          fi
+
+      - name: Initialize Capacitor Android Project & Wrap index.html
+        run: |
+          rm -rf /tmp/indian-gta6-apk
+          mkdir -p /tmp/indian-gta6-apk/www
+          cp index.html /tmp/indian-gta6-apk/www/index.html
+          if [ -d public ]; then
+            cp -r public/* /tmp/indian-gta6-apk/www/ 2>/dev/null || true
+          fi
+
+          cd /tmp/indian-gta6-apk
+          cat << 'EOF' > package.json
+          {
+            "name": "indian-gta-6-openworld",
+            "version": "1.0.0",
+            "description": "Bharat Vice: Indian Open-World 3D Action Game",
+            "private": true
+          }
+          EOF
+
+          npm install @capacitor/core@6.1.2 @capacitor/cli@6.1.2 @capacitor/android@6.1.2
+
+          cat << 'EOF' > capacitor.config.json
+          {
+            "appId": "com.bharatvice.indiangta6",
+            "appName": "Indian GTA 6",
+            "webDir": "www",
+            "bundledWebRuntime": false,
+            "server": {
+              "androidScheme": "https",
+              "cleartext": true,
+              "allowNavigation": ["*"]
+            },
+            "android": {
+              "allowMixedContent": true,
+              "webContentsDebuggingEnabled": true
+            }
+          }
+          EOF
+
+          npx cap add android
+          npx cap sync android
+
+      - name: Configure Landscape 16:9 Fullscreen, Cleartext & Immersive Mode
+        run: |
+          cd /tmp/indian-gta6-apk
+          python3 - << 'PYEOF'
+          manifest_path = "android/app/src/main/AndroidManifest.xml"
+          with open(manifest_path, "r", encoding="utf-8") as f:
+              xml = f.read()
+
+          if "android:usesCleartextTraffic" not in xml:
+              xml = xml.replace(
+                  "<application",
+                  '<application android:usesCleartextTraffic="true" android:hardwareAccelerated="true"'
+              )
+
+          xml = xml.replace(
+              'android:name=".MainActivity"',
+              'android:name=".MainActivity"\n            android:screenOrientation="sensorLandscape"\n            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"'
+          )
+
+          with open(manifest_path, "w", encoding="utf-8") as f:
+              f.write(xml)
+          PYEOF
+
+      - name: Build Debug APK with Gradle
+        run: |
+          cd /tmp/indian-gta6-apk/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/Indian-GTA-6.apk"
+          mkdir -p "$GITHUB_WORKSPACE/public"
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/public/Indian-GTA-6.apk"
+          ls -lh "$GITHUB_WORKSPACE/Indian-GTA-6.apk"
+
+      - name: Save Indian-GTA-6.apk Directly into GitHub Repo Root
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f Indian-GTA-6.apk public/Indian-GTA-6.apk
+          git diff --staged --quiet || (git commit -m "Auto-build Indian-GTA-6.apk [skip ci]" && git push)
+
+      - name: Upload Indian-GTA-6-APK to GitHub Actions Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Indian-GTA-6-APK
+          path: Indian-GTA-6.apk
+          if-no-files-found: error
+
+      - name: Publish Direct .APK to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "Indian GTA 6 Android APK (v1.0.${{ github.run_number }})"
+          body: |
+            ### 🇮🇳 Bharat Vice: Indian GTA 6 (3D Open-World Android APK)
+            - **Direct Install:** Tap `Indian-GTA-6.apk` below to download and install directly on your Android phone.
+            - **Orientation:** Locked to 16:9 Widescreen Sensor Landscape Fullscreen.
+          files: Indian-GTA-6.apk
+          draft: false
+          prerelease: false

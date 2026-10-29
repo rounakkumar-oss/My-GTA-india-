@@ -1,0 +1,6 @@
+{
+  "name": "Bharat Vice: Indian Open-World 3D",
+  "description": "3D Indian Open-World Action Game (GTA 6 meets Indian City) with Lucia-style GLB character, Ferrari & Auto-Rickshaw driving, Hindu Mandir & city landmarks, infinite NPC spawner, and Android APK GitHub Actions workflow.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
